@@ -4,7 +4,7 @@ metadata:
   name: envoy-gateway
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "03"
+    argocd.argoproj.io/sync-wave: "05"
 spec:
   project: default
   source:
