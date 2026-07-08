@@ -13,8 +13,3 @@ spec:
         annotations:
           metallb.io/address-pool: manual-pool
           metallb.io/loadBalancerIPs: 10.0.20.17
-        patch:
-          type: StrategicMerge
-          value:
-            spec:
-              loadBalancerIP: 10.0.20.17
