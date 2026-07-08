@@ -15,19 +15,24 @@ spec:
       values: |
         nodeSelector:
           node-role.kubernetes.io/gpu: ""
+
         tolerations:
           - key: nvidia.com/gpu
-            operator: Equal
-            value: "true"
+            operator: Exists
             effect: NoSchedule
-        gfd:
-          enabled: false
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: nvidia-device-plugin
-  syncPolicy:
-    automated:
-      prune: false
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+
+        migStrategy: none
+
+        config:
+          map:
+            default: |-
+              version: v1
+              flags:
+                migStrategy: none
+              sharing:
+                timeSlicing:
+                  renameByDefault: false
+                  failRequestsGreaterThanOne: true
+                  resources:
+                    - name: nvidia.com/gpu
+                      replicas: 4
