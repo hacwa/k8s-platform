@@ -11,6 +11,17 @@ spec:
     repoURL: https://metallb.github.io/metallb
     chart: metallb
     targetRevision: 0.16.1
+    helm:
+      values: |
+        speaker:
+          ignoreExcludeLB: true
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+              effect: NoSchedule
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system
