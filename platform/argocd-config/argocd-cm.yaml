@@ -9,6 +9,7 @@ metadata:
 data:
   admin.enabled: "true"
   url: https://argocd.hacwa.co.uk
+  users.session.duration: "24h"
   oidc.config: |
     name: Keycloak
     issuer: https://keycloak.hacwa.co.uk/realms/master
