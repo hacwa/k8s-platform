@@ -8,9 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/kubernetes-sigs/gateway-api.git
-    targetRevision: v1.4.1
-    path: config/crd/standard
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/gateway-api-crds
   destination:
     server: https://kubernetes.default.svc
     namespace: default
