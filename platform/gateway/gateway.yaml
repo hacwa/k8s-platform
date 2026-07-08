@@ -5,9 +5,11 @@ metadata:
   namespace: platform-gateway
 spec:
   gatewayClassName: envoy-gateway
-  addresses:
-    - type: IPAddress
-      value: 10.0.20.17
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: external-gateway-proxy
   listeners:
     - name: https
       hostname: "*.hacwa.co.uk"
