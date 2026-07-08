@@ -6,7 +6,6 @@ metadata:
 data:
   url: https://argocd.hacwa.co.uk
   users.anonymous.enabled: "false"
-  admin.enabled: "false"
   oidc.config: |
     name: Keycloak
     issuer: https://keycloak.hacwa.co.uk/realms/master
