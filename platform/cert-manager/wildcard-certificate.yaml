@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-gateway
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hacwa-co-uk-wildcard
+  namespace: platform-gateway
+spec:
+  secretName: hacwa-co-uk-wildcard-tls
+  issuerRef:
+    name: letsencrypt-cloudflare-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - hacwa.co.uk
+    - "*.hacwa.co.uk"

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  url: https://argocd.hacwa.co.uk
+  users.anonymous.enabled: "false"
+  admin.enabled: "false"
+  oidc.config: |
+    name: Keycloak
+    issuer: https://keycloak.hacwa.co.uk/realms/master
+    clientID: argocd
+    enablePKCEAuthentication: true
+    refreshTokenThreshold: 2m
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
