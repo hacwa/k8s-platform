@@ -10,4 +10,5 @@ data:
   policy.default: role:readonly
   policy.csv: |
     g, ArgoCDAdmins, role:admin
+    g, /ArgoCDAdmins, role:admin
   scopes: '[groups]'

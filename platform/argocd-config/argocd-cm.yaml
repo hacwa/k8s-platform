@@ -7,5 +7,15 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  admin.enabled: "true"
   url: https://argocd.hacwa.co.uk
-  users.anonymous.enabled: "false"
+  oidc.config: |
+    name: Keycloak
+    issuer: https://keycloak.hacwa.co.uk/realms/master
+    clientID: argocd
+    enablePKCEAuthentication: true
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
