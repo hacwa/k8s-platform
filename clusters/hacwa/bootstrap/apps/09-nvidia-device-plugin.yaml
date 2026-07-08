@@ -4,7 +4,7 @@ metadata:
   name: nvidia-device-plugin
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "08"
+    argocd.argoproj.io/sync-wave: "09"
 spec:
   project: default
   source:
@@ -15,13 +15,11 @@ spec:
       values: |
         nodeSelector:
           node-role.kubernetes.io/gpu: ""
-
         tolerations:
           - key: nvidia.com/gpu
             operator: Equal
             value: "true"
             effect: NoSchedule
-
         gfd:
           enabled: false
   destination:

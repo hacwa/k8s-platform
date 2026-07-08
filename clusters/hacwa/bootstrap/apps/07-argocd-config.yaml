@@ -4,7 +4,7 @@ metadata:
   name: argocd-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "06"
+    argocd.argoproj.io/sync-wave: "07"
 spec:
   project: default
   source:
@@ -18,3 +18,5 @@ spec:
     automated:
       prune: false
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

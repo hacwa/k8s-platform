@@ -4,7 +4,7 @@ metadata:
   name: argocd-route
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "07"
+    argocd.argoproj.io/sync-wave: "08"
 spec:
   project: default
   source:
@@ -18,3 +18,6 @@ spec:
     automated:
       prune: false
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
