@@ -8,13 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://docker.io/envoyproxy
+    repoURL: registry-1.docker.io/envoyproxy
     chart: gateway-helm
     targetRevision: v1.8.2
-    helm:
-      values: |
-        crds:
-          enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
