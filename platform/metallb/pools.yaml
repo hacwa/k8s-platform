@@ -35,3 +35,6 @@ metadata:
 spec:
   ipAddressPools:
     - manual-pool
+  nodeSelectors:
+    - matchLabels:
+        metallb-l2-20: "true"
