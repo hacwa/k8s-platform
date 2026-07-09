@@ -55,7 +55,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: bootstrap
-          image: docker.io/bitnami/kubectl:latest
+          image: docker.io/rancher/kubectl:v1.33.12
           imagePullPolicy: IfNotPresent
           env:
             - name: DASHBOARD_USERNAME
@@ -64,11 +64,11 @@ spec:
                   name: ceph-dashboard-saml
                   key: username
           command:
-            - /bin/bash
+            - /bin/sh
             - -lc
           args:
             - |
-              set -euo pipefail
+              set -eu
 
               TOOLBOX="deploy/rook-ceph-tools"
               CEPH_URL="https://ceph.hacwa.internal"
