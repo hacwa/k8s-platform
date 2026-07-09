@@ -5,12 +5,21 @@ metadata:
   namespace: rook-ceph
 spec:
   parentRefs:
-    - name: internal-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: internal-gateway
       namespace: platform-gateway
       sectionName: https-internal-wildcard
   hostnames:
     - ceph.hacwa.internal
   rules:
-    - backendRefs:
-        - name: rook-ceph-mgr-dashboard
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: rook-ceph-mgr-dashboard
           port: 7000
+          weight: 1
