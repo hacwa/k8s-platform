@@ -35,6 +35,12 @@ spec:
           rbd:
             enabled: true
             name: rook-ceph.rbd.csi.ceph.com
+            nodePlugin:
+              tolerations:
+                - key: nvidia.com/gpu
+                  operator: Equal
+                  value: "true"
+                  effect: NoSchedule
 
           cephfs:
             enabled: false
