@@ -4,7 +4,7 @@ metadata:
   name: rook-ceph-cluster
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/sync-wave: "22"
 spec:
   project: default
   source:
