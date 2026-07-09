@@ -4,22 +4,33 @@ metadata:
   name: ceph-dashboard
   namespace: rook-ceph
 spec:
+  hostnames:
+    - ceph.hacwa.internal
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: internal-gateway
       namespace: platform-gateway
       sectionName: https-internal-wildcard
-  hostnames:
-    - ceph.hacwa.internal
   rules:
     - matches:
         - path:
             type: PathPrefix
             value: /
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Proto
+                value: https
+              - name: X-Forwarded-Scheme
+                value: https
+              - name: X-Forwarded-Port
+                value: "443"
+              - name: X-Forwarded-Host
+                value: ceph.hacwa.internal
+              - name: X-Forwarded-Ssl
+                value: "on"
       backendRefs:
-        - group: ""
-          kind: Service
-          name: rook-ceph-mgr-dashboard
+        - name: rook-ceph-mgr-dashboard
           port: 7000
-          weight: 1
