@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-pull-qwen25-7b-instruct
+  namespace: ollama
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: pull
+          image: docker.io/ollama/ollama:0.31.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OLLAMA_HOST
+              value: "http://ollama.ollama.svc.cluster.local:11434"
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - |
+              until ollama list >/dev/null 2>&1; do
+                echo "waiting for ollama service..."
+                sleep 5
+              done
+
+              ollama pull qwen2.5:7b-instruct
+              ollama list

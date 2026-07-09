@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ollama
+  namespace: ollama
+spec:
+  hostnames:
+    - ollama.hacwa.internal
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: internal-gateway
+      namespace: platform-gateway
+      sectionName: https-internal-wildcard
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: ollama
+          port: 11434
+          weight: 1
