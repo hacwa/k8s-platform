@@ -22,6 +22,11 @@ spec:
 
             nodePlugin:
               priorityClassName: system-node-critical
+              tolerations:
+                - key: nvidia.com/gpu
+                  operator: Equal
+                  value: "true"
+                  effect: NoSchedule
 
             controllerPlugin:
               priorityClassName: system-cluster-critical
