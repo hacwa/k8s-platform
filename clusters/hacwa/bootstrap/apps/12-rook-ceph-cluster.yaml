@@ -40,7 +40,8 @@ spec:
 
           dashboard:
             enabled: true
-            ssl: true
+            ssl: false
+            port: 7000
 
           network:
             connections:
