@@ -10,29 +10,33 @@ metadata:
   name: ceph-dashboard-sso-bootstrap
   namespace: rook-ceph
 rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["pods/exec"]
-    verbs: ["create"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list"]
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods/exec
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: ceph-dashboard-sso-bootstrap
   namespace: rook-ceph
-subjects:
-  - kind: ServiceAccount
-    name: ceph-dashboard-sso-bootstrap
-    namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: ceph-dashboard-sso-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: ceph-dashboard-sso-bootstrap
+    namespace: rook-ceph
 ---
 apiVersion: batch/v1
 kind: Job
@@ -42,30 +46,23 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
-    argocd.argoproj.io/sync-wave: "20"
 spec:
-  backoffLimit: 2
   ttlSecondsAfterFinished: 300
+  backoffLimit: 2
   template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: ceph-dashboard-sso-bootstrap
     spec:
-      restartPolicy: Never
       serviceAccountName: ceph-dashboard-sso-bootstrap
-      volumes:
-        - name: saml
-          secret:
-            secretName: ceph-dashboard-saml
-            defaultMode: 0400
+      restartPolicy: OnFailure
       containers:
-        - name: bootstrap
-          image: docker.io/bitnami/kubectl:1.33
+        - name: configure-sso
+          image: docker.io/bitnami/kubectl:1.33.2
           imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: saml
-              mountPath: /saml
-              readOnly: true
+          env:
+            - name: DASHBOARD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ceph-dashboard-saml
+                  key: username
           command:
             - /bin/bash
             - -lc
@@ -73,114 +70,134 @@ spec:
             - |
               set -euo pipefail
 
+              TOOLBOX="deploy/rook-ceph-tools"
               CEPH_URL="https://ceph.hacwa.internal"
               KEYCLOAK_METADATA="https://keycloak.hacwa.co.uk/realms/master/protocol/saml/descriptor"
               KEYCLOAK_ENTITY_ID="https://keycloak.hacwa.co.uk/realms/master"
               USERNAME_ATTR="username"
 
-              CERT="/tmp/ceph-dashboard-saml.crt"
-              KEY="/tmp/ceph-dashboard-saml.key"
-              DASHBOARD_USERNAME="$(cat /saml/username)"
-
               echo "=== Wait for rook-ceph-tools ==="
-              kubectl -n rook-ceph rollout status deploy/rook-ceph-tools --timeout=180s
+              kubectl -n rook-ceph rollout status "$TOOLBOX" --timeout=300s
 
               echo
-              echo "=== Detect active mgr ==="
-              ACTIVE_MGR="$(kubectl -n rook-ceph exec deploy/rook-ceph-tools -- bash -lc "ceph mgr dump -f json | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"active_name\"])'")"
-              MGR_POD="$(kubectl -n rook-ceph get pod -l app=rook-ceph-mgr,ceph_daemon_id="${ACTIVE_MGR}" -o jsonpath='{.items[0].metadata.name}')"
-
-              echo "Active mgr daemon: ${ACTIVE_MGR}"
-              echo "Active mgr pod:    ${MGR_POD}"
-
-              echo
-              echo "=== Copy SAML SP cert/key into active mgr pod ==="
-              kubectl -n rook-ceph exec "${MGR_POD}" -c mgr -- bash -lc "rm -f '${CERT}' '${KEY}'"
-
-              kubectl -n rook-ceph exec -i "${MGR_POD}" -c mgr -- bash -lc "cat > '${CERT}'" < /saml/sp.crt
-              kubectl -n rook-ceph exec -i "${MGR_POD}" -c mgr -- bash -lc "cat > '${KEY}'" < /saml/sp.key
-
-              kubectl -n rook-ceph exec "${MGR_POD}" -c mgr -- bash -lc "chmod 644 '${CERT}' '${KEY}' && ls -l '${CERT}' '${KEY}'"
-
-              echo
-              echo "=== Configure Ceph Dashboard SAML ==="
-              kubectl -n rook-ceph exec deploy/rook-ceph-tools -- bash -lc "
+              echo "=== Configure Ceph Dashboard SAML without encrypted assertions ==="
+              kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
                 set -euo pipefail
 
-                CEPH_URL='${CEPH_URL}'
-                KEYCLOAK_METADATA='${KEYCLOAK_METADATA}'
-                KEYCLOAK_ENTITY_ID='${KEYCLOAK_ENTITY_ID}'
-                USERNAME_ATTR='${USERNAME_ATTR}'
-                CERT='${CERT}'
-                KEY='${KEY}'
-
                 ceph dashboard sso setup saml2 \
-                  \"\${CEPH_URL}\" \
-                  \"\${KEYCLOAK_METADATA}\" \
-                  \"\${USERNAME_ATTR}\" \
-                  \"\${KEYCLOAK_ENTITY_ID}\" \
-                  \"\${CERT}\" \
-                  \"\${KEY}\" >/tmp/ceph-dashboard-saml-setup.json
+                  '$CEPH_URL' \
+                  '$KEYCLOAK_METADATA' \
+                  '$USERNAME_ATTR' \
+                  '$KEYCLOAK_ENTITY_ID' >/tmp/ceph-dashboard-saml-setup.json
 
-                ceph dashboard sso show saml2 > /tmp/ceph-dashboard-saml-before-patch.json
+                ceph dashboard sso enable saml2
+
+                ceph dashboard sso show saml2 > /tmp/saml-before.json
 
                 python3 - <<'PY'
               import json
 
-              with open("/tmp/ceph-dashboard-saml-before-patch.json", "r", encoding="utf-8") as f:
-                  data = json.load(f)
+              d = json.load(open('/tmp/saml-before.json', 'r', encoding='utf-8'))
+              s = d['onelogin_settings']
+              sec = s['security']
 
-              settings = data["onelogin_settings"]
-
-              # Required because TLS terminates at Envoy Gateway and Ceph sees backend HTTP.
-              settings["strict"] = False
+              s['strict'] = False
+              sec['authnRequestsSigned'] = False
+              sec['wantAssertionsSigned'] = True
+              sec['wantAssertionsEncrypted'] = False
+              sec['wantMessagesSigned'] = False
+              sec['wantNameIdEncrypted'] = False
 
               db = {
-                  "protocol": "saml2",
-                  "saml2": {
-                      "onelogin_settings": settings
+                  'protocol': 'saml2',
+                  'saml2': {
+                      'onelogin_settings': s
                   },
-                  "oauth2": {
-                      "onelogin_settings": settings
-                  },
-                  "version": 1
+                  'version': 1
               }
 
-              with open("/tmp/ceph-dashboard-sso-db.json", "w", encoding="utf-8") as f:
-                  json.dump(db, f)
+              json.dump(db, open('/tmp/saml-after.json', 'w', encoding='utf-8'))
               PY
 
-                ceph config-key set mgr/dashboard/ssodb_v1 -i /tmp/ceph-dashboard-sso-db.json
-                ceph dashboard sso enable saml2
+                ceph config-key set mgr/dashboard/ssodb_v1 -i /tmp/saml-after.json
               "
 
               echo
-              echo "=== Remove transient SP key/cert from active mgr pod ==="
-              kubectl -n rook-ceph exec "${MGR_POD}" -c mgr -- bash -lc "rm -f '${CERT}' '${KEY}'"
-
-              echo
-              echo "=== Ensure local dashboard user exists ==="
-              kubectl -n rook-ceph exec deploy/rook-ceph-tools -- bash -lc "
+              echo "=== Ensure Ceph Dashboard local user exists ==="
+              kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
                 set -euo pipefail
 
-                DASHBOARD_USERNAME='${DASHBOARD_USERNAME}'
+                DASHBOARD_USERNAME='$DASHBOARD_USERNAME'
                 PASS_FILE=\"/tmp/ceph-dashboard-\${DASHBOARD_USERNAME}.password\"
 
-                openssl rand -base64 32 > \"\${PASS_FILE}\"
-                chmod 600 \"\${PASS_FILE}\"
+                openssl rand -base64 32 > \"\$PASS_FILE\"
+                chmod 600 \"\$PASS_FILE\"
 
-                if ceph dashboard ac-user-show \"\${DASHBOARD_USERNAME}\" >/dev/null 2>&1; then
-                  echo \"User already exists: \${DASHBOARD_USERNAME}\"
+                if ceph dashboard ac-user-show \"\$DASHBOARD_USERNAME\" >/dev/null 2>&1; then
+                  echo \"User already exists: \$DASHBOARD_USERNAME\"
                 else
-                  ceph dashboard ac-user-create \"\${DASHBOARD_USERNAME}\" -i \"\${PASS_FILE}\" administrator >/dev/null
-                  echo \"Created user: \${DASHBOARD_USERNAME}\"
+                  ceph dashboard ac-user-create \"\$DASHBOARD_USERNAME\" -i \"\$PASS_FILE\" administrator >/dev/null
+                  echo \"Created user: \$DASHBOARD_USERNAME\"
                 fi
 
-                rm -f \"\${PASS_FILE}\"
+                rm -f \"\$PASS_FILE\"
+                ceph dashboard ac-user-set-roles \"\$DASHBOARD_USERNAME\" administrator >/dev/null
+                ceph dashboard ac-user-show \"\$DASHBOARD_USERNAME\"
+              "
 
-                ceph dashboard ac-user-set-roles \"\${DASHBOARD_USERNAME}\" administrator >/dev/null
+              echo
+              echo "=== Check live SAML settings ==="
+              if kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
+                set -euo pipefail
+                ceph dashboard sso show saml2 > /tmp/saml-live.json
+                python3 - <<'PY'
+              import json
+              d=json.load(open('/tmp/saml-live.json'))
+              s=d['onelogin_settings']
+              sec=s['security']
+              print('strict =', s.get('strict'))
+              print('authnRequestsSigned =', sec.get('authnRequestsSigned'))
+              print('wantAssertionsSigned =', sec.get('wantAssertionsSigned'))
+              print('wantAssertionsEncrypted =', sec.get('wantAssertionsEncrypted'))
+              print('wantMessagesSigned =', sec.get('wantMessagesSigned'))
+              print('wantNameIdEncrypted =', sec.get('wantNameIdEncrypted'))
+              raise SystemExit(0 if sec.get('wantAssertionsEncrypted') is False else 1)
+              PY
+              "; then
+                echo "Live SAML config is already correct"
+                exit 0
+              fi
 
-                echo
+              echo
+              echo "=== Live config still stale; fail active mgr so dashboard reloads config-key ==="
+              kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc '
+                set -euo pipefail
+                ACTIVE="$(ceph mgr dump -f json | python3 -c "import json,sys; print(json.load(sys.stdin)[\"active_name\"])")"
+                echo "Failing active mgr: $ACTIVE"
+                ceph mgr fail "$ACTIVE"
+              '
+
+              sleep 20
+
+              echo
+              echo "=== Verify SAML settings after mgr reload ==="
+              kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
+                set -euo pipefail
                 ceph dashboard sso status
-                ceph dashboard ac-user-show \"\${DASHBOARD_USERNAME}\" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({\"username\": d[\"username\"], \"roles\": d[\"roles\"], \"enabled\": d[\"enabled\"]}))'
+                ceph dashboard sso show saml2 > /tmp/saml-final.json
+                python3 - <<'PY'
+              import json
+              d=json.load(open('/tmp/saml-final.json'))
+              s=d['onelogin_settings']
+              sec=s['security']
+              print('strict =', s.get('strict'))
+              print('authnRequestsSigned =', sec.get('authnRequestsSigned'))
+              print('wantAssertionsSigned =', sec.get('wantAssertionsSigned'))
+              print('wantAssertionsEncrypted =', sec.get('wantAssertionsEncrypted'))
+              print('wantMessagesSigned =', sec.get('wantMessagesSigned'))
+              print('wantNameIdEncrypted =', sec.get('wantNameIdEncrypted'))
+
+              if sec.get('wantAssertionsEncrypted') is not False:
+                  raise SystemExit('FAILED: Ceph still requires encrypted assertions')
+              PY
               "
