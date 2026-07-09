@@ -54,8 +54,8 @@ spec:
       serviceAccountName: ceph-dashboard-sso-bootstrap
       restartPolicy: OnFailure
       containers:
-        - name: configure-sso
-          image: docker.io/bitnami/kubectl:1.33.2
+        - name: bootstrap
+          image: docker.io/bitnami/kubectl:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: DASHBOARD_USERNAME
@@ -80,7 +80,7 @@ spec:
               kubectl -n rook-ceph rollout status "$TOOLBOX" --timeout=300s
 
               echo
-              echo "=== Configure Ceph Dashboard SAML without encrypted assertions ==="
+              echo "=== Configure Ceph Dashboard SAML ==="
               kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
                 set -euo pipefail
 
@@ -141,26 +141,32 @@ spec:
                 fi
 
                 rm -f \"\$PASS_FILE\"
+
                 ceph dashboard ac-user-set-roles \"\$DASHBOARD_USERNAME\" administrator >/dev/null
                 ceph dashboard ac-user-show \"\$DASHBOARD_USERNAME\"
               "
 
               echo
-              echo "=== Check live SAML settings ==="
+              echo "=== Verify live SAML settings ==="
               if kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
                 set -euo pipefail
+
                 ceph dashboard sso show saml2 > /tmp/saml-live.json
+
                 python3 - <<'PY'
               import json
-              d=json.load(open('/tmp/saml-live.json'))
-              s=d['onelogin_settings']
-              sec=s['security']
+
+              d = json.load(open('/tmp/saml-live.json', 'r', encoding='utf-8'))
+              s = d['onelogin_settings']
+              sec = s['security']
+
               print('strict =', s.get('strict'))
               print('authnRequestsSigned =', sec.get('authnRequestsSigned'))
               print('wantAssertionsSigned =', sec.get('wantAssertionsSigned'))
               print('wantAssertionsEncrypted =', sec.get('wantAssertionsEncrypted'))
               print('wantMessagesSigned =', sec.get('wantMessagesSigned'))
               print('wantNameIdEncrypted =', sec.get('wantNameIdEncrypted'))
+
               raise SystemExit(0 if sec.get('wantAssertionsEncrypted') is False else 1)
               PY
               "; then
@@ -172,6 +178,7 @@ spec:
               echo "=== Live config still stale; fail active mgr so dashboard reloads config-key ==="
               kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc '
                 set -euo pipefail
+
                 ACTIVE="$(ceph mgr dump -f json | python3 -c "import json,sys; print(json.load(sys.stdin)[\"active_name\"])")"
                 echo "Failing active mgr: $ACTIVE"
                 ceph mgr fail "$ACTIVE"
@@ -183,13 +190,17 @@ spec:
               echo "=== Verify SAML settings after mgr reload ==="
               kubectl -n rook-ceph exec "$TOOLBOX" -- bash -lc "
                 set -euo pipefail
+
                 ceph dashboard sso status
                 ceph dashboard sso show saml2 > /tmp/saml-final.json
+
                 python3 - <<'PY'
               import json
-              d=json.load(open('/tmp/saml-final.json'))
-              s=d['onelogin_settings']
-              sec=s['security']
+
+              d = json.load(open('/tmp/saml-final.json', 'r', encoding='utf-8'))
+              s = d['onelogin_settings']
+              sec = s['security']
+
               print('strict =', s.get('strict'))
               print('authnRequestsSigned =', sec.get('authnRequestsSigned'))
               print('wantAssertionsSigned =', sec.get('wantAssertionsSigned'))

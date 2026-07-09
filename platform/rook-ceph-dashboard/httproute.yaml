@@ -33,4 +33,3 @@ spec:
                 value: "on"
       backendRefs:
         - name: rook-ceph-mgr-dashboard
-          port: 7000
