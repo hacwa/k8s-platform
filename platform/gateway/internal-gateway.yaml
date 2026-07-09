@@ -1,0 +1,40 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: internal-gateway
+  namespace: platform-gateway
+spec:
+  gatewayClassName: envoy-gateway
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: internal-gateway-proxy
+  listeners:
+    - name: https-internal-wildcard
+      hostname: "*.hacwa.internal"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: hacwa-internal-wildcard-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    - name: https-internal-root
+      hostname: "hacwa.internal"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: hacwa-internal-wildcard-tls
+      allowedRoutes:
+        namespaces:
+          from: All

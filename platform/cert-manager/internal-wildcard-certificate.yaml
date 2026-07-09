@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hacwa-internal-wildcard
+  namespace: platform-gateway
+spec:
+  secretName: hacwa-internal-wildcard-tls
+  duration: 84000h
+  renewBefore: 720h
+  issuerRef:
+    name: hacwa-internal-ca
+    kind: ClusterIssuer
+  commonName: hacwa.internal
+  dnsNames:
+    - hacwa.internal
+    - "*.hacwa.internal"
