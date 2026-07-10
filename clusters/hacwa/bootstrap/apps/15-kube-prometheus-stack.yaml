@@ -210,6 +210,8 @@ spec:
           prometheusSpec:
             externalUrl: https://prometheus.hacwa.internal
             routePrefix: /
+            enableFeatures:
+              - old-ui
             replicas: 1
             retention: 15d
             retentionSize: 40GB
