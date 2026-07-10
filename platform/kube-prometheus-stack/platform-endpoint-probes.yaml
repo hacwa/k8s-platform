@@ -1,0 +1,47 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: platform-https-public
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: platform-https-public
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_public
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - https://argocd.hacwa.co.uk/
+        - https://grafana.hacwa.co.uk/
+      labels:
+        probe_group: platform-public
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: platform-https-internal
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: platform-https-internal
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_internal
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - https://alertmanager.hacwa.internal/
+        - https://prometheus.hacwa.internal/
+        - https://ceph.hacwa.internal/
+        - https://ollama.hacwa.internal/api/version
+      labels:
+        probe_group: platform-internal

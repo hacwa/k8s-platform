@@ -1,0 +1,132 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-endpoints
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: platform-endpoints.availability
+      rules:
+        - alert: PlatformEndpointMonitoringMissing
+          expr: |
+            absent(
+              probe_success{
+                probe_group=~"platform-public|platform-internal"
+              }
+            )
+          for: 5m
+          labels:
+            severity: critical
+            namespace: monitoring
+          annotations:
+            summary: Platform endpoint monitoring is missing
+            description: >-
+              Prometheus has received no platform HTTPS probe metrics
+              for more than five minutes.
+
+        - alert: PlatformEndpointUnavailable
+          expr: |
+            probe_success{
+              probe_group=~"platform-public|platform-internal"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+            namespace: monitoring
+          annotations:
+            summary: >-
+              Platform endpoint {{ $labels.instance }} is unavailable
+            description: >-
+              The HTTPS probe for {{ $labels.instance }} has failed
+              for more than two minutes.
+
+        - alert: PlatformEndpointResponseSlow
+          expr: |
+            probe_duration_seconds{
+              probe_group=~"platform-public|platform-internal"
+            } > 2
+          for: 10m
+          labels:
+            severity: warning
+            namespace: monitoring
+          annotations:
+            summary: >-
+              Platform endpoint {{ $labels.instance }} is responding slowly
+            description: >-
+              The HTTPS probe for {{ $labels.instance }} has taken
+              more than two seconds for ten minutes.
+
+    - name: platform-endpoints.certificates
+      rules:
+        - alert: PlatformEndpointCertificateExpiringSoon
+          expr: |
+            (
+              probe_ssl_earliest_cert_expiry{
+                probe_group=~"platform-public|platform-internal"
+              }
+              - time()
+            ) < 1209600
+            and
+            (
+              probe_ssl_earliest_cert_expiry{
+                probe_group=~"platform-public|platform-internal"
+              }
+              - time()
+            ) > 259200
+          for: 15m
+          labels:
+            severity: warning
+            namespace: monitoring
+          annotations:
+            summary: >-
+              TLS certificate for {{ $labels.instance }} expires within 14 days
+            description: >-
+              The earliest certificate presented by
+              {{ $labels.instance }} expires in
+              {{ $value | humanizeDuration }}.
+
+        - alert: PlatformEndpointCertificateExpiryCritical
+          expr: |
+            (
+              probe_ssl_earliest_cert_expiry{
+                probe_group=~"platform-public|platform-internal"
+              }
+              - time()
+            ) <= 259200
+            and
+            (
+              probe_ssl_earliest_cert_expiry{
+                probe_group=~"platform-public|platform-internal"
+              }
+              - time()
+            ) > 0
+          for: 15m
+          labels:
+            severity: critical
+            namespace: monitoring
+          annotations:
+            summary: >-
+              TLS certificate for {{ $labels.instance }}
+              expires within three days
+            description: >-
+              The earliest certificate presented by
+              {{ $labels.instance }} expires in
+              {{ $value | humanizeDuration }}.
+
+        - alert: PlatformEndpointCertificateExpired
+          expr: |
+            probe_ssl_earliest_cert_expiry{
+              probe_group=~"platform-public|platform-internal"
+            }
+            - time() <= 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: monitoring
+          annotations:
+            summary: >-
+              TLS certificate for {{ $labels.instance }} has expired
+            description: >-
+              The endpoint is presenting an expired TLS certificate.

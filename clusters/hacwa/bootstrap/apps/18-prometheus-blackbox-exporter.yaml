@@ -32,6 +32,38 @@ spec:
                 fail_if_body_not_matches_regexp:
                   - '"version"[[:space:]]*:'
 
+            platform_https_public:
+              prober: http
+              timeout: 10s
+              http:
+                method: GET
+                valid_status_codes:
+                  - 200
+                valid_http_versions:
+                  - HTTP/1.1
+                  - HTTP/2.0
+                follow_redirects: true
+                preferred_ip_protocol: ip4
+                fail_if_not_ssl: true
+                tls_config:
+                  insecure_skip_verify: false
+
+            platform_https_internal:
+              prober: http
+              timeout: 10s
+              http:
+                method: GET
+                valid_status_codes:
+                  - 200
+                valid_http_versions:
+                  - HTTP/1.1
+                  - HTTP/2.0
+                follow_redirects: true
+                preferred_ip_protocol: ip4
+                fail_if_not_ssl: true
+                tls_config:
+                  insecure_skip_verify: true
+
         serviceMonitor:
           selfMonitor:
             enabled: true

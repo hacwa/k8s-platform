@@ -9,6 +9,9 @@ resources:
   - nvidia-gpu-rules.yaml
   - ceph-csi-rules.yaml
   - ceph-csi-dashboard.yaml
+  - platform-endpoint-probes.yaml
+  - platform-endpoint-rules.yaml
+  - platform-endpoint-dashboard.yaml
 configMapGenerator:
   - name: ceph-grafana-dashboards
     namespace: monitoring
