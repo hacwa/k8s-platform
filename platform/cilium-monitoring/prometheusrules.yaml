@@ -1,0 +1,216 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cilium
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cilium.availability
+      rules:
+        - alert: CiliumAgentUnavailable
+          expr: |
+            kube_daemonset_status_number_available{
+              namespace="kube-system",
+              daemonset="cilium"
+            }
+            <
+            kube_daemonset_status_desired_number_scheduled{
+              namespace="kube-system",
+              daemonset="cilium"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: kube-system
+          annotations:
+            summary: One or more Cilium agents are unavailable
+            description: >-
+              The Cilium DaemonSet has fewer available agents than
+              desired for more than five minutes.
+
+        - alert: CiliumOperatorUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="kube-system",
+              deployment="cilium-operator"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="kube-system",
+              deployment="cilium-operator"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: kube-system
+          annotations:
+            summary: Cilium operator is unavailable
+            description: >-
+              The Cilium operator has fewer available replicas than
+              requested for more than five minutes.
+
+        - alert: CiliumOperatorMetricsUnavailable
+          expr: |
+            absent(
+              up{
+                monitor_component="cilium-operator"
+              }
+            )
+            or
+            max(
+              up{
+                monitor_component="cilium-operator"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Cilium operator metrics are unavailable
+            description: >-
+              Prometheus has been unable to scrape the Cilium operator
+              metrics endpoint for more than five minutes.
+
+        - alert: CiliumEnvoyUnavailable
+          expr: |
+            kube_daemonset_status_number_available{
+              namespace="kube-system",
+              daemonset="cilium-envoy"
+            }
+            <
+            kube_daemonset_status_desired_number_scheduled{
+              namespace="kube-system",
+              daemonset="cilium-envoy"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: kube-system
+          annotations:
+            summary: One or more Cilium Envoy instances are unavailable
+            description: >-
+              The Cilium Envoy DaemonSet has fewer available instances
+              than desired for more than five minutes.
+
+        - alert: CiliumEnvoyMetricsUnavailable
+          expr: |
+            (
+              count(
+                up{
+                  monitor_component="cilium-envoy"
+                } == 1
+              )
+              or vector(0)
+            )
+            <
+            max(
+              kube_daemonset_status_desired_number_scheduled{
+                namespace="kube-system",
+                daemonset="cilium-envoy"
+              }
+            )
+          for: 5m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: One or more Cilium Envoy metrics targets are unavailable
+            description: >-
+              Prometheus is scraping fewer Cilium Envoy targets than
+              the desired DaemonSet replica count.
+
+    - name: cilium.restarts
+      rules:
+        - alert: CiliumAgentRestarting
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="kube-system",
+                container="cilium-agent"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Cilium agent restarted on {{ $labels.pod }}
+            description: >-
+              The Cilium agent container restarted during the last
+              15 minutes.
+
+        - alert: CiliumOperatorRestarting
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="kube-system",
+                container="cilium-operator"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Cilium operator restarted
+            description: >-
+              The Cilium operator container restarted during the last
+              15 minutes.
+
+        - alert: CiliumEnvoyRestarting
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="kube-system",
+                container="cilium-envoy"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Cilium Envoy restarted on {{ $labels.pod }}
+            description: >-
+              The Cilium Envoy container restarted during the last
+              15 minutes.
+
+    - name: cilium.envoy
+      rules:
+        - alert: CiliumEnvoyServerNotLive
+          expr: |
+            envoy_server_live{
+              monitor_component="cilium-envoy"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: kube-system
+          annotations:
+            summary: Cilium Envoy is not live on {{ $labels.node }}
+            description: >-
+              The Cilium Envoy process has reported that it is not live
+              for more than five minutes.
+
+        - alert: CiliumEnvoyUpstreamConnectionFailures
+          expr: |
+            sum by (
+              node,
+              envoy_cluster_name
+            ) (
+              increase(
+                envoy_cluster_upstream_cx_connect_fail{
+                  monitor_component="cilium-envoy"
+                }[15m]
+              )
+            ) > 5
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Cilium Envoy is failing upstream connections
+            description: >-
+              Cilium Envoy on {{ $labels.node }} recorded more than
+              five connection failures for cluster
+              {{ $labels.envoy_cluster_name }} during the last
+              15 minutes.
