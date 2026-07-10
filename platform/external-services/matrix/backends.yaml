@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-element
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: element
+    app.kubernetes.io/part-of: matrix
+spec:
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: matrix-element
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: matrix-element
+    endpointslice.kubernetes.io/managed-by: gitops
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+endpoints:
+  - addresses:
+      - 10.0.0.178
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-synapse
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: synapse
+    app.kubernetes.io/part-of: matrix
+spec:
+  ports:
+    - name: http
+      port: 8008
+      protocol: TCP
+      targetPort: 8008
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: matrix-synapse
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: matrix-synapse
+    endpointslice.kubernetes.io/managed-by: gitops
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 8008
+endpoints:
+  - addresses:
+      - 10.0.0.178
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-mas
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: matrix-authentication-service
+    app.kubernetes.io/part-of: matrix
+spec:
+  ports:
+    - name: http
+      port: 8081
+      protocol: TCP
+      targetPort: 8081
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: matrix-mas
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: matrix-mas
+    endpointslice.kubernetes.io/managed-by: gitops
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 8081
+endpoints:
+  - addresses:
+      - 10.0.0.178
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-rtc-auth
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: matrix-rtc-auth
+    app.kubernetes.io/part-of: matrix
+spec:
+  ports:
+    - name: http
+      port: 8082
+      protocol: TCP
+      targetPort: 8082
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: matrix-rtc-auth
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: matrix-rtc-auth
+    endpointslice.kubernetes.io/managed-by: gitops
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 8082
+endpoints:
+  - addresses:
+      - 10.0.0.178
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matrix-livekit-api
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: livekit
+    app.kubernetes.io/part-of: matrix
+spec:
+  ports:
+    - name: http
+      port: 7880
+      protocol: TCP
+      targetPort: 7880
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: matrix-livekit-api
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: matrix-livekit-api
+    endpointslice.kubernetes.io/managed-by: gitops
+addressType: IPv4
+ports:
+  - name: http
+    protocol: TCP
+    port: 7880
+endpoints:
+  - addresses:
+      - 10.0.0.178
+    conditions:
+      ready: true
+      serving: true
+      terminating: false

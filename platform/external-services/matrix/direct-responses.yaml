@@ -1,0 +1,48 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: HTTPRouteFilter
+metadata:
+  name: matrix-well-known-server
+  namespace: external-services
+spec:
+  directResponse:
+    contentType: application/json
+    statusCode: 200
+    body:
+      type: Inline
+      inline: '{"m.server":"synapse.hacwa.co.uk:443"}'
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: HTTPRouteFilter
+metadata:
+  name: matrix-well-known-client
+  namespace: external-services
+spec:
+  directResponse:
+    contentType: application/json
+    statusCode: 200
+    body:
+      type: Inline
+      inline: '{"m.homeserver":{"base_url":"https://synapse.hacwa.co.uk"},"m.identity_server":{"base_url":"https://vector.im"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://matrix-rtc.hacwa.co.uk/livekit/jwt"}]}'
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: HTTPRouteFilter
+metadata:
+  name: matrix-well-known-options
+  namespace: external-services
+spec:
+  directResponse:
+    contentType: text/plain
+    statusCode: 200
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: HTTPRouteFilter
+metadata:
+  name: matrix-root
+  namespace: external-services
+spec:
+  directResponse:
+    contentType: text/plain
+    statusCode: 200
+    body:
+      type: Inline
+      inline: synapse.hacwa.co.uk
