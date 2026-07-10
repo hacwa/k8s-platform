@@ -13,6 +13,162 @@ spec:
     targetRevision: 0.16.1
     helm:
       values: |
+        prometheus:
+          namespace: monitoring
+          serviceAccount: kube-prometheus-stack-prometheus
+          rbacPrometheus: true
+
+          serviceMonitor:
+            enabled: true
+            interval: 30s
+
+            controller:
+              additionalLabels:
+                release: kube-prometheus-stack
+              tlsConfig:
+                insecureSkipVerify: true
+
+            speaker:
+              additionalLabels:
+                release: kube-prometheus-stack
+              tlsConfig:
+                insecureSkipVerify: true
+
+          prometheusRule:
+            enabled: true
+
+            additionalLabels:
+              release: kube-prometheus-stack
+
+            staleConfig:
+              enabled: true
+              labels:
+                severity: warning
+                namespace: metallb-system
+
+            configNotLoaded:
+              enabled: true
+              labels:
+                severity: critical
+                namespace: metallb-system
+
+            addressPoolExhausted:
+              enabled: true
+              excludePools: ""
+              labels:
+                severity: critical
+                namespace: metallb-system
+
+            addressPoolUsage:
+              enabled: true
+              excludePools: ""
+              thresholds:
+                - percent: 75
+                  labels:
+                    severity: warning
+                    namespace: metallb-system
+                - percent: 85
+                  labels:
+                    severity: warning
+                    namespace: metallb-system
+                - percent: 95
+                  labels:
+                    severity: critical
+                    namespace: metallb-system
+
+            bgpSessionDown:
+              enabled: false
+
+            extraAlerts:
+              - alert: MetalLBControllerUnavailable
+                expr: |
+                  absent(
+                    up{
+                      namespace="metallb-system",
+                      service="metallb-controller-monitor-service"
+                    }
+                  )
+                  or
+                  max(
+                    up{
+                      namespace="metallb-system",
+                      service="metallb-controller-monitor-service"
+                    }
+                  ) == 0
+                for: 5m
+                labels:
+                  severity: critical
+                  namespace: metallb-system
+                annotations:
+                  summary: MetalLB controller is unavailable
+                  description: >-
+                    Prometheus has been unable to scrape the MetalLB
+                    controller for more than five minutes.
+
+              - alert: MetalLBSpeakerUnavailable
+                expr: |
+                  (
+                    count(
+                      up{
+                        namespace="metallb-system",
+                        service="metallb-speaker-monitor-service"
+                      } == 1
+                    )
+                    or vector(0)
+                  )
+                  <
+                  max(
+                    kube_daemonset_status_desired_number_scheduled{
+                      namespace="metallb-system",
+                      daemonset="metallb-speaker"
+                    }
+                  )
+                for: 5m
+                labels:
+                  severity: critical
+                  namespace: metallb-system
+                annotations:
+                  summary: One or more MetalLB speakers are unavailable
+                  description: >-
+                    The number of successfully scraped MetalLB speaker
+                    targets is lower than the desired speaker count.
+
+              - alert: MetalLBKubernetesUpdateErrors
+                expr: |
+                  sum(
+                    increase(
+                      metallb_k8s_client_update_errors_total[15m]
+                    )
+                  ) > 0
+                labels:
+                  severity: warning
+                  namespace: metallb-system
+                annotations:
+                  summary: MetalLB encountered Kubernetes update errors
+                  description: >-
+                    MetalLB recorded one or more failed Kubernetes
+                    object updates during the last 15 minutes.
+
+              - alert: MetalLBLoadBalancerServicePending
+                expr: |
+                  kube_service_spec_type{
+                    type="LoadBalancer"
+                  } == 1
+                  unless on(namespace, service)
+                  kube_service_status_load_balancer_ingress
+                for: 10m
+                labels:
+                  severity: warning
+                  namespace: metallb-system
+                annotations:
+                  summary: >-
+                    LoadBalancer service
+                    {{ $labels.namespace }}/{{ $labels.service }}
+                    has no assigned address
+                  description: >-
+                    The LoadBalancer service has remained without an
+                    ingress IP or hostname for more than ten minutes.
+
         speaker:
           ignoreExcludeLB: true
           tolerations:
@@ -31,3 +187,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
