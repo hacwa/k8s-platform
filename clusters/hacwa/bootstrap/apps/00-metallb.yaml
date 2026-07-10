@@ -20,7 +20,6 @@ spec:
 
           serviceMonitor:
             enabled: true
-            interval: 30s
 
             controller:
               additionalLabels:
