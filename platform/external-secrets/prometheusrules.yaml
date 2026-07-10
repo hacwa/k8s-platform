@@ -1,0 +1,200 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: external-secrets
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: external-secrets.availability
+      rules:
+        - alert: ExternalSecretsOperatorUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="external-secrets",
+              deployment="external-secrets"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="external-secrets",
+              deployment="external-secrets"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets Operator is unavailable
+            description: >-
+              External Secrets Operator has fewer available replicas
+              than requested for more than five minutes.
+
+        - alert: ExternalSecretsWebhookUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="external-secrets",
+              deployment="external-secrets-webhook"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="external-secrets",
+              deployment="external-secrets-webhook"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets webhook is unavailable
+            description: >-
+              External Secrets webhook has fewer available replicas
+              than requested for more than five minutes.
+
+        - alert: ExternalSecretsCertControllerUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="external-secrets",
+              deployment="external-secrets-cert-controller"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="external-secrets",
+              deployment="external-secrets-cert-controller"
+            }
+          for: 5m
+          labels:
+            severity: warning
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets certificate controller is unavailable
+            description: >-
+              External Secrets certificate controller has fewer available
+              replicas than requested for more than five minutes.
+
+    - name: external-secrets.synchronisation
+      rules:
+        - alert: ExternalSecretSyncErrors
+          expr: |
+            sum by (namespace, name) (
+              increase(
+                externalsecret_sync_calls_error[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: External Secret synchronisation failed
+            description: >-
+              ExternalSecret {{ $labels.namespace }}/{{ $labels.name }}
+              recorded one or more synchronisation failures during the
+              last 15 minutes.
+
+        - alert: ExternalSecretNotReady
+          expr: |
+            max by (namespace, name) (
+              externalsecret_status_condition{
+                condition="Ready",
+                status="True"
+              }
+            ) == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: External Secret is not ready
+            description: >-
+              ExternalSecret {{ $labels.namespace }}/{{ $labels.name }}
+              has not reported Ready for more than ten minutes.
+
+        - alert: AWSClusterSecretStoreNotReady
+          expr: |
+            max by (name) (
+              clustersecretstore_status_condition{
+                name="aws-secrets-manager",
+                condition="Ready",
+                status="True"
+              }
+            ) == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: AWS ClusterSecretStore is not ready
+            description: >-
+              The aws-secrets-manager ClusterSecretStore has not reported
+              Ready for more than ten minutes.
+
+        - alert: ExternalSecretsProviderErrors
+          expr: |
+            sum by (provider, call, status) (
+              increase(
+                externalsecret_provider_api_calls_count{
+                  status!="success"
+                }[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: External Secrets provider API errors detected
+            description: >-
+              External Secrets recorded failed {{ $labels.provider }}
+              provider calls during the last 15 minutes.
+
+        - alert: ExternalSecretsControllerReconcileErrors
+          expr: |
+            sum by (controller) (
+              increase(
+                controller_runtime_reconcile_total{
+                  namespace="external-secrets",
+                  result="error"
+                }[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets reconciliation errors detected
+            description: >-
+              The {{ $labels.controller }} controller recorded one or
+              more reconciliation errors during the last 15 minutes.
+
+        - alert: ExternalSecretsWorkqueueBacklog
+          expr: |
+            sum by (name) (
+              workqueue_depth{
+                namespace="external-secrets"
+              }
+            ) > 10
+          for: 15m
+          labels:
+            severity: warning
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets work queue is backed up
+            description: >-
+              The {{ $labels.name }} work queue has remained above ten
+              queued items for more than 15 minutes.
+
+    - name: external-secrets.webhook
+      rules:
+        - alert: ExternalSecretsWebhookErrors
+          expr: |
+            sum(
+              increase(
+                controller_runtime_webhook_requests_total{
+                  service=~"external-secrets.*",
+                  code=~"5.."
+                }[10m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            namespace: external-secrets
+          annotations:
+            summary: External Secrets webhook errors detected
+            description: >-
+              The External Secrets webhook returned one or more HTTP
+              5xx responses during the last ten minutes.
