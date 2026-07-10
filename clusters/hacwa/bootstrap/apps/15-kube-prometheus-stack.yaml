@@ -208,6 +208,8 @@ spec:
             main:
               enabled: false
           prometheusSpec:
+            externalUrl: https://prometheus.hacwa.internal
+            routePrefix: /
             replicas: 1
             retention: 15d
             retentionSize: 40GB

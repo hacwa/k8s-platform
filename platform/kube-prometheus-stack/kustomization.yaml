@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - grafana-httproute.yaml
   - alertmanager-httproute.yaml
+  - prometheus-httproute.yaml
   - etcd-scrapeconfig.yaml
