@@ -14,7 +14,8 @@ spec:
       path: /metrics
       interval: 30s
       relabelings:
-        - targetLabel: monitor_component
+        - action: replace
+          targetLabel: monitor_component
           replacement: envoy-gateway
 ---
 apiVersion: monitoring.coreos.com/v1
@@ -34,11 +35,14 @@ spec:
       path: /stats/prometheus
       interval: 30s
       relabelings:
-        - targetLabel: monitor_component
+        - action: replace
+          targetLabel: monitor_component
           replacement: envoy-proxy
-        - sourceLabels:
+        - action: replace
+          sourceLabels:
             - __meta_kubernetes_pod_label_gateway_envoyproxy_io_owning_gateway_name
           targetLabel: gateway
-        - sourceLabels:
+        - action: replace
+          sourceLabels:
             - __meta_kubernetes_pod_label_gateway_envoyproxy_io_owning_gateway_namespace
           targetLabel: gateway_namespace
