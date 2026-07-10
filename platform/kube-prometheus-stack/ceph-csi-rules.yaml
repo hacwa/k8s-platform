@@ -1,0 +1,187 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ceph-csi
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: ceph-csi.availability
+      rules:
+        - alert: CephCSIMetricsMissing
+          expr: |
+            absent(
+              csi_liveness{
+                namespace="rook-ceph"
+              }
+            )
+          for: 10m
+          labels:
+            severity: critical
+            namespace: rook-ceph
+          annotations:
+            summary: Ceph CSI metrics are missing
+            description: >-
+              Prometheus has received no Ceph CSI liveness metrics
+              from the rook-ceph namespace for ten minutes.
+
+        - alert: CephCSIDriverUnhealthy
+          expr: |
+            csi_liveness{
+              namespace="rook-ceph"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: rook-ceph
+          annotations:
+            summary: >-
+              Ceph CSI driver is unhealthy on {{ $labels.pod }}
+            description: >-
+              The Ceph CSI liveness probe for {{ $labels.pod }}
+              has failed for more than five minutes.
+
+    - name: ceph-csi.provisioning
+      rules:
+        - alert: CephRBDPVCProvisioningStuck
+          expr: |
+            (
+              kube_persistentvolumeclaim_status_phase{
+                phase="Pending"
+              } == 1
+            )
+            and on (
+              namespace,
+              persistentvolumeclaim
+            )
+            (
+              kube_persistentvolumeclaim_info{
+                storageclass="rook-ceph-block"
+              } == 1
+            )
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is still pending
+            description: >-
+              The rook-ceph-block PVC has not completed provisioning
+              within 15 minutes.
+
+        - alert: CephRBDPVCLost
+          expr: |
+            (
+              kube_persistentvolumeclaim_status_phase{
+                phase="Lost"
+              } == 1
+            )
+            and on (
+              namespace,
+              persistentvolumeclaim
+            )
+            (
+              kube_persistentvolumeclaim_info{
+                storageclass="rook-ceph-block"
+              } == 1
+            )
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is lost
+            description: >-
+              Kubernetes reports the rook-ceph-block PVC in the
+              Lost phase.
+
+        - alert: CephRBDVolumeAttachmentStuck
+          expr: |
+            (
+              kube_volumeattachment_status_attached == 0
+            )
+            and on (volumeattachment)
+            (
+              kube_volumeattachment_info{
+                attacher="rook-ceph.rbd.csi.ceph.com"
+              } == 1
+            )
+          for: 10m
+          labels:
+            severity: critical
+            namespace: rook-ceph
+          annotations:
+            summary: >-
+              Ceph RBD volume attachment is stuck
+            description: >-
+              VolumeAttachment {{ $labels.volumeattachment }} has
+              remained unattached for more than ten minutes.
+
+    - name: ceph-csi.capacity
+      rules:
+        - alert: CephRBDPVCUsageHigh
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes
+              /
+              clamp_min(
+                kubelet_volume_stats_capacity_bytes,
+                1
+              )
+            )
+            * on (
+              namespace,
+              persistentvolumeclaim
+            )
+            group_left(storageclass)
+            kube_persistentvolumeclaim_info{
+              storageclass="rook-ceph-block"
+            }
+            > 85
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is over 85 percent full
+            description: >-
+              The PVC has remained above 85 percent capacity for
+              more than 30 minutes.
+
+        - alert: CephRBDPVCUsageCritical
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes
+              /
+              clamp_min(
+                kubelet_volume_stats_capacity_bytes,
+                1
+              )
+            )
+            * on (
+              namespace,
+              persistentvolumeclaim
+            )
+            group_left(storageclass)
+            kube_persistentvolumeclaim_info{
+              storageclass="rook-ceph-block"
+            }
+            > 95
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is over 95 percent full
+            description: >-
+              The PVC has remained above 95 percent capacity for
+              more than 15 minutes.

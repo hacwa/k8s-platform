@@ -19,6 +19,13 @@ spec:
         csi:
           installCsiOperator: true
 
+        csi:
+          serviceMonitor:
+            enabled: true
+            namespace: rook-ceph
+            labels:
+              release: kube-prometheus-stack
+            interval: 15s
         monitoring:
           enabled: true
   destination:
