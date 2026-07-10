@@ -19,8 +19,13 @@ spec:
           enabled: true
 
         monitoring:
-          enabled: false
-          createPrometheusRules: false
+          enabled: true
+          metricsDisabled: false
+          createPrometheusRules: true
+          rulesNamespaceOverride: monitoring
+          prometheusRule:
+            labels:
+              release: kube-prometheus-stack
 
         cephImage:
           repository: quay.io/ceph/ceph
