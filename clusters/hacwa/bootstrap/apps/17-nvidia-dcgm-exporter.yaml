@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nvidia-dcgm-exporter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "27"
+spec:
+  project: default
+  source:
+    repoURL: https://nvidia.github.io/dcgm-exporter/helm-charts
+    chart: dcgm-exporter
+    targetRevision: 4.8.2
+    helm:
+      releaseName: nvidia-dcgm-exporter
+      values: |
+        runtimeClassName: ""
+
+        priorityClassName: system-node-critical
+
+        nodeSelector:
+          kubernetes.io/hostname: k8s-worker-01
+
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+
+        serviceAccount:
+          create: true
+          name: ""
+
+        service:
+          enable: true
+          type: ClusterIP
+          port: 9400
+          internalTrafficPolicy: Local
+
+        serviceMonitor:
+          enabled: true
+          interval: 15s
+          scrapeTimeout: 10s
+          honorLabels: false
+          additionalLabels:
+            release: kube-prometheus-stack
+          relabelings:
+            - sourceLabels:
+                - __meta_kubernetes_pod_node_name
+              targetLabel: node
+              action: replace
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nvidia-dcgm-exporter
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
