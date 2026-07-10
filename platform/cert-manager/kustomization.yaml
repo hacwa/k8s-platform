@@ -5,3 +5,6 @@ resources:
   - wildcard-certificate.yaml
   - internal-ca-clusterissuer.yaml
   - internal-wildcard-certificate.yaml
+  - cert-manager-servicemonitors.yaml
+  - cert-manager-prometheusrules.yaml
+  - cert-manager-dashboard.yaml

@@ -1,0 +1,182 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-manager
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cert-manager.certificates
+      rules:
+        - alert: CertManagerCertificateExpiringSoon
+          expr: |
+            (
+              certmanager_certificate_expiration_timestamp_seconds
+              - time()
+            ) < 1209600
+            and
+            (
+              certmanager_certificate_expiration_timestamp_seconds
+              - time()
+            ) > 259200
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              expires within 14 days
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }},
+              issued by {{ $labels.issuer_kind }}
+              {{ $labels.issuer_name }}, expires in
+              {{ $value | humanizeDuration }}.
+
+        - alert: CertManagerCertificateExpiryCritical
+          expr: |
+            (
+              certmanager_certificate_expiration_timestamp_seconds
+              - time()
+            ) <= 259200
+            and
+            (
+              certmanager_certificate_expiration_timestamp_seconds
+              - time()
+            ) > 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              expires within three days
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              expires in {{ $value | humanizeDuration }}.
+
+        - alert: CertManagerCertificateExpired
+          expr: |
+            certmanager_certificate_expiration_timestamp_seconds
+            - time() <= 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              has expired
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              is no longer valid.
+
+        - alert: CertManagerCertificateNotReady
+          expr: |
+            certmanager_certificate_ready_status{
+              condition="True"
+            } == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              is not ready
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }}
+              has not reported Ready=True for at least 15 minutes.
+
+    - name: cert-manager.controllers
+      rules:
+        - alert: CertManagerControllerSyncErrors
+          expr: |
+            increase(
+              certmanager_controller_sync_error_count[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: cert-manager
+          annotations:
+            summary: >-
+              cert-manager controller {{ $labels.controller }}
+              is reporting errors
+            description: >-
+              Controller {{ $labels.controller }} recorded
+              reconciliation errors during the last 15 minutes.
+
+    - name: cert-manager.components
+      rules:
+        - alert: CertManagerControllerUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="cert-manager",
+                service="cert-manager"
+              }
+            )
+            or
+            max(
+              up{
+                namespace="cert-manager",
+                service="cert-manager"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: cert-manager
+          annotations:
+            summary: cert-manager controller is unavailable
+            description: >-
+              Prometheus has been unable to scrape the cert-manager
+              controller for more than five minutes.
+
+        - alert: CertManagerCainjectorUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="cert-manager",
+                service="cert-manager-cainjector"
+              }
+            )
+            or
+            max(
+              up{
+                namespace="cert-manager",
+                service="cert-manager-cainjector"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: cert-manager
+          annotations:
+            summary: cert-manager cainjector is unavailable
+            description: >-
+              Prometheus has been unable to scrape the cert-manager
+              cainjector for more than five minutes.
+
+        - alert: CertManagerWebhookUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="cert-manager",
+                service="cert-manager-webhook"
+              }
+            )
+            or
+            max(
+              up{
+                namespace="cert-manager",
+                service="cert-manager-webhook"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: cert-manager
+          annotations:
+            summary: cert-manager webhook is unavailable
+            description: >-
+              Prometheus has been unable to scrape the cert-manager
+              webhook for more than five minutes.
