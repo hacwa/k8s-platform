@@ -13,7 +13,11 @@ spec:
   hostnames:
     - element.hacwa.co.uk
   rules:
-    - backendRefs:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
         - group: ""
           kind: Service
           name: matrix-element
@@ -35,7 +39,11 @@ spec:
   hostnames:
     - mas.hacwa.co.uk
   rules:
-    - backendRefs:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
         - group: ""
           kind: Service
           name: matrix-mas
