@@ -25,7 +25,7 @@ spec:
         - alert: NvidiaGpuTemperatureHigh
           expr: |
             max by (node, gpu, modelName) (
-              DCGM_FI_DEV_GPU_TEMP{exported_pod=""}
+              DCGM_FI_DEV_GPU_TEMP
             ) > 80
           for: 10m
           labels:
@@ -38,7 +38,7 @@ spec:
         - alert: NvidiaGpuTemperatureHigh
           expr: |
             max by (node, gpu, modelName) (
-              DCGM_FI_DEV_GPU_TEMP{exported_pod=""}
+              DCGM_FI_DEV_GPU_TEMP
             ) > 88
           for: 5m
           labels:
@@ -53,16 +53,16 @@ spec:
             100
             *
             max by (node, gpu, modelName) (
-              DCGM_FI_DEV_FB_USED{exported_pod=""}
+              DCGM_FI_DEV_FB_USED
             )
             /
             (
               max by (node, gpu, modelName) (
-                DCGM_FI_DEV_FB_USED{exported_pod=""}
+                DCGM_FI_DEV_FB_USED
               )
               +
               max by (node, gpu, modelName) (
-                DCGM_FI_DEV_FB_FREE{exported_pod=""}
+                DCGM_FI_DEV_FB_FREE
               )
             ) > 90
           for: 15m
@@ -75,8 +75,10 @@ spec:
 
         - alert: NvidiaGpuPcieReplayErrors
           expr: |
-            increase(
-              DCGM_FI_DEV_PCIE_REPLAY_COUNTER{exported_pod=""}[15m]
+            max by (node, gpu, modelName) (
+              increase(
+                DCGM_FI_DEV_PCIE_REPLAY_COUNTER[15m]
+              )
             ) > 0
           for: 5m
           labels:

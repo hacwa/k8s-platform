@@ -56,7 +56,7 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_UTIL{exported_pod=\"\"})",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_UTIL)",
               "legendFormat": "{{node}} GPU {{gpu}}",
               "range": true,
               "refId": "A"
@@ -101,14 +101,14 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) / 1024",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED) / 1024",
               "legendFormat": "{{node}} GPU {{gpu}} used",
               "range": true,
               "refId": "A"
             },
             {
               "editorMode": "code",
-              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE{exported_pod=\"\"}) / 1024",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE) / 1024",
               "legendFormat": "{{node}} GPU {{gpu}} free",
               "range": true,
               "refId": "B"
@@ -169,7 +169,7 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "100 * max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) / (max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) + max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE{exported_pod=\"\"}))",
+              "expr": "100 * max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED) / (max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED) + max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE))",
               "legendFormat": "{{node}} GPU {{gpu}}",
               "range": true,
               "refId": "A"
@@ -230,7 +230,7 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_TEMP{exported_pod=\"\"})",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_TEMP)",
               "legendFormat": "{{node}} GPU {{gpu}}",
               "range": true,
               "refId": "A"
@@ -271,7 +271,7 @@ data:
           "targets": [
             {
               "editorMode": "code",
-              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_POWER_USAGE{exported_pod=\"\"})",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_POWER_USAGE)",
               "legendFormat": "{{node}} GPU {{gpu}}",
               "range": true,
               "refId": "A"
