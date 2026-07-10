@@ -7,3 +7,15 @@ resources:
   - etcd-scrapeconfig.yaml
   - nvidia-gpu-dashboard.yaml
   - nvidia-gpu-rules.yaml
+configMapGenerator:
+  - name: ceph-grafana-dashboards
+    namespace: monitoring
+    files:
+      - ceph-cluster.json=dashboards/ceph/ceph-cluster.json
+      - ceph-osd-single.json=dashboards/ceph/ceph-osd-single.json
+      - ceph-pools.json=dashboards/ceph/ceph-pools.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
