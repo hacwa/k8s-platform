@@ -1,0 +1,138 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: ollama-api
+  namespace: ollama
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: ollama-blackbox
+  interval: 30s
+  scrapeTimeout: 15s
+  module: ollama_http
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - http://ollama.ollama.svc.cluster.local:11434/api/version
+      labels:
+        app: ollama
+        probe_target: ollama-api
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ollama
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: ollama.availability
+      rules:
+        - alert: OllamaProbeMissing
+          expr: |
+            absent(
+              probe_success{
+                probe_target="ollama-api"
+              }
+            )
+          for: 5m
+          labels:
+            severity: critical
+            namespace: ollama
+          annotations:
+            summary: Ollama monitoring probe is missing
+            description: >-
+              Prometheus has received no Ollama blackbox-probe
+              metrics for more than five minutes.
+
+        - alert: OllamaAPIUnavailable
+          expr: |
+            probe_success{
+              probe_target="ollama-api"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+            namespace: ollama
+          annotations:
+            summary: Ollama API is unavailable
+            description: >-
+              The Ollama /api/version endpoint has failed its
+              availability probe for more than two minutes.
+
+        - alert: OllamaDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="ollama",
+              deployment="ollama"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="ollama",
+              deployment="ollama"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: ollama
+          annotations:
+            summary: Ollama deployment is unavailable
+            description: >-
+              The Ollama deployment has fewer available replicas
+              than requested for more than five minutes.
+
+    - name: ollama.performance
+      rules:
+        - alert: OllamaAPIResponseSlow
+          expr: |
+            probe_duration_seconds{
+              probe_target="ollama-api"
+            } > 2
+          for: 10m
+          labels:
+            severity: warning
+            namespace: ollama
+          annotations:
+            summary: Ollama API response is slow
+            description: >-
+              The lightweight Ollama version endpoint has taken
+              more than two seconds to respond for ten minutes.
+
+        - alert: OllamaGPUWorkloadMissing
+          expr: |
+            absent(
+              DCGM_FI_DEV_GPU_UTIL{
+                exported_namespace="ollama",
+                exported_pod!=""
+              }
+            )
+          for: 10m
+          labels:
+            severity: warning
+            namespace: ollama
+          annotations:
+            summary: Ollama GPU allocation is not visible
+            description: >-
+              DCGM has not associated an NVIDIA GPU workload with
+              an Ollama pod for more than ten minutes.
+
+        - alert: OllamaPodRestarting
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="ollama",
+                container="ollama"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: ollama
+          annotations:
+            summary: Ollama pod restarted
+            description: >-
+              The Ollama container restarted during the last
+              15 minutes.
