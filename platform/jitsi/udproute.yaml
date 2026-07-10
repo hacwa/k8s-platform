@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: UDPRoute
+metadata:
+  name: jitsi-jvb
+  namespace: jitsi
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
+      namespace: platform-gateway
+      sectionName: jvb-udp
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: jitsi-jvb
+          port: 10000
+          weight: 1

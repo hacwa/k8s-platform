@@ -1,0 +1,139 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: jitsi
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: jitsi.availability
+      rules:
+        - alert: JitsiWebUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="jitsi",
+              deployment="jitsi-web"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="jitsi",
+              deployment="jitsi-web"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: jitsi
+          annotations:
+            summary: Jitsi web frontend is unavailable
+            description: >-
+              The Jitsi web frontend has fewer available replicas than
+              requested for more than five minutes.
+
+        - alert: JitsiJicofoUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="jitsi",
+              deployment="jitsi-jicofo"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="jitsi",
+              deployment="jitsi-jicofo"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: jitsi
+          annotations:
+            summary: Jitsi conference focus is unavailable
+            description: >-
+              Jicofo has fewer available replicas than requested for
+              more than five minutes.
+
+        - alert: JitsiVideobridgeUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="jitsi",
+              deployment="jitsi-jvb"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="jitsi",
+              deployment="jitsi-jvb"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: jitsi
+          annotations:
+            summary: Jitsi Videobridge is unavailable
+            description: >-
+              JVB has fewer available replicas than requested for more
+              than five minutes.
+
+        - alert: JitsiProsodyUnavailable
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="jitsi",
+              statefulset="jitsi-prosody"
+            }
+            <
+            kube_statefulset_replicas{
+              namespace="jitsi",
+              statefulset="jitsi-prosody"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: jitsi
+          annotations:
+            summary: Jitsi Prosody is unavailable
+            description: >-
+              Prosody has fewer ready replicas than requested for more
+              than five minutes.
+
+        - alert: JitsiJVBMetricsUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="jitsi",
+                service="jitsi-jvb-metrics"
+              }
+            )
+            or
+            max(
+              up{
+                namespace="jitsi",
+                service="jitsi-jvb-metrics"
+              }
+            ) == 0
+          for: 10m
+          labels:
+            severity: warning
+            namespace: jitsi
+          annotations:
+            summary: Jitsi Videobridge metrics are unavailable
+            description: >-
+              Prometheus has been unable to scrape the JVB exporter for
+              more than ten minutes.
+
+        - alert: JitsiCredentialSyncFailed
+          expr: |
+            max by (namespace, name) (
+              externalsecret_status_condition{
+                namespace="jitsi",
+                name=~"jitsi-jicofo-auth|jitsi-jvb-auth",
+                condition="Ready",
+                status="True"
+              }
+            ) == 0
+          for: 10m
+          labels:
+            severity: critical
+            namespace: jitsi
+          annotations:
+            summary: Jitsi credential synchronisation failed
+            description: >-
+              ExternalSecret {{ $labels.namespace }}/{{ $labels.name }}
+              has not reported Ready for more than ten minutes.

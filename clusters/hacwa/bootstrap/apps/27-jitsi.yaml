@@ -1,0 +1,154 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jitsi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "27"
+spec:
+  project: default
+  source:
+    repoURL: https://jitsi-contrib.github.io/jitsi-helm/
+    chart: jitsi-meet
+    targetRevision: 2.20.0
+    helm:
+      values: |
+        fullnameOverride: jitsi
+
+        tz: Europe/London
+        publicURL: https://jitsi.hacwa.co.uk
+
+        enableAuth: false
+        enableGuests: true
+
+        image:
+          pullPolicy: IfNotPresent
+
+        websockets:
+          xmpp:
+            enabled: true
+          colibri:
+            enabled: false
+
+        web:
+          replicaCount: 1
+
+          service:
+            type: ClusterIP
+            port: 80
+
+          gateway:
+            enabled: false
+
+          ingress:
+            enabled: false
+
+          extraEnvs:
+            DISABLE_P2P: "true"
+            ENABLE_PREJOIN_PAGE: "true"
+            ENABLE_WELCOME_PAGE: "true"
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        prosody:
+          persistence:
+            enabled: false
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+        jicofo:
+          xmpp:
+            existingSecretName: jitsi-jicofo-auth
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+        jvb:
+          replicaCount: 1
+
+          xmpp:
+            existingSecretName: jitsi-jvb-auth
+
+          publicIPs:
+            - 185.137.223.132
+
+          useNodeIP: false
+          useInternalStun: false
+          stunServers: ""
+
+          useHostPort: false
+          useHostNetwork: false
+
+          UDPPort: 10000
+          portRangeSize: 1
+
+          service:
+            enabled: true
+            type: ClusterIP
+
+          metrics:
+            enabled: true
+
+            serviceMonitor:
+              enabled: true
+              selector:
+                release: kube-prometheus-stack
+              interval: 30s
+
+            grafanaDashboards:
+              enabled: true
+              labels:
+                grafana_dashboard: "1"
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+
+        coturn:
+          enabled: false
+
+        jibri:
+          enabled: false
+
+        jigasi:
+          enabled: false
+
+        transcriber:
+          enabled: false
+
+        etherpad:
+          enabled: false
+
+        excalidraw:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jitsi
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
