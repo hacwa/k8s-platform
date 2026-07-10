@@ -5,7 +5,7 @@ metadata:
   namespace: argo-workflows
   annotations:
     workflows.argoproj.io/rbac-rule: >-
-      'admin' in argo_workflows_roles
+      'admin' in groups
     workflows.argoproj.io/rbac-rule-precedence: "10"
     workflows.argoproj.io/service-account-token.name: >-
       argo-workflows-sso-admin.service-account-token

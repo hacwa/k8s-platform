@@ -101,10 +101,10 @@ spec:
               - email
               - groups
 
-            userInfoPath: /protocol/openid-connect/userinfo
+            customGroupClaimName: argo_workflows_roles
 
             filterGroupsRegex:
-              - '^/ArgoWorkflowsAdmins$'
+              - '^admin$'
 
             sessionExpiry: 10h
 
