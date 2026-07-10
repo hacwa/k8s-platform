@@ -3,5 +3,4 @@ kind: Kustomization
 
 resources:
   - clustersecretstore.yaml
-  - validation-externalsecret.yaml
   - prometheusrules.yaml
