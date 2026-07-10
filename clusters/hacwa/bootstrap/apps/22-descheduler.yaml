@@ -1,0 +1,160 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: descheduler
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/descheduler/
+    chart: descheduler
+    targetRevision: 0.36.0
+    helm:
+      values: |
+        fullnameOverride: descheduler
+
+        kind: CronJob
+
+        schedule: "17 */6 * * *"
+        timeZone: Europe/London
+        suspend: false
+
+        startingDeadlineSeconds: 1800
+        activeDeadlineSeconds: 900
+        successfulJobsHistoryLimit: 5
+        failedJobsHistoryLimit: 5
+
+        priorityClassName: system-cluster-critical
+
+        nodeSelector:
+          node-role.kubernetes.io/worker: ""
+
+        tolerations: []
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+
+        cmdOptions:
+          v: 3
+
+        service:
+          enabled: true
+
+        serviceMonitor:
+          enabled: true
+          additionalLabels:
+            release: kube-prometheus-stack
+          interval: 5s
+          insecureSkipVerify: true
+
+        deschedulerPolicyAPIVersion: descheduler/v1alpha2
+
+        deschedulerPolicy:
+          nodeSelector: "node-role.kubernetes.io/worker,!node-role.kubernetes.io/gpu"
+
+          maxNoOfPodsToEvictPerNode: 1
+          maxNoOfPodsToEvictPerNamespace: 1
+          maxNoOfPodsToEvictTotal: 2
+
+          evictionFailureEventNotification: true
+
+          profiles:
+            - name: conservative
+              pluginConfig:
+                - name: DefaultEvictor
+                  args:
+                    nodeFit: true
+                    minReplicas: 2
+                    minPodAge: 10m
+                    noEvictionPolicy: Mandatory
+
+                    namespaceLabelSelector:
+                      matchExpressions:
+                        - key: kubernetes.io/metadata.name
+                          operator: NotIn
+                          values:
+                            - kube-system
+                            - rook-ceph
+                            - ollama
+                            - nvidia-device-plugin
+                            - nvidia-dcgm-exporter
+                            - argo-workflows
+
+                    podProtections:
+                      defaultDisabled: []
+                      extraEnabled:
+                        - PodsWithPVC
+                        - PodsWithResourceClaims
+
+                - name: RemoveDuplicates
+
+                - name: RemovePodsViolatingNodeAffinity
+                  args:
+                    nodeAffinityType:
+                      - requiredDuringSchedulingIgnoredDuringExecution
+
+                - name: RemovePodsViolatingNodeTaints
+
+                - name: RemovePodsViolatingInterPodAntiAffinity
+
+                - name: RemovePodsViolatingTopologySpreadConstraint
+                  args:
+                    constraints:
+                      - DoNotSchedule
+                    topologyBalanceNodeFit: true
+
+                - name: LowNodeUtilization
+                  args:
+                    useDeviationThresholds: true
+
+                    thresholds:
+                      cpu: 10
+                      memory: 10
+                      pods: 5
+
+                    targetThresholds:
+                      cpu: 10
+                      memory: 10
+                      pods: 5
+
+                    evictionLimits:
+                      node: 1
+
+              plugins:
+                balance:
+                  enabled:
+                    - RemoveDuplicates
+                    - RemovePodsViolatingTopologySpreadConstraint
+                    - LowNodeUtilization
+
+                deschedule:
+                  enabled:
+                    - RemovePodsViolatingNodeAffinity
+                    - RemovePodsViolatingNodeTaints
+                    - RemovePodsViolatingInterPodAntiAffinity
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

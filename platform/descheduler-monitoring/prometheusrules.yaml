@@ -1,0 +1,158 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: descheduler
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: descheduler.cronjob
+      rules:
+        - alert: DeschedulerCronJobFailed
+          expr: |
+            sum(
+              kube_job_status_failed{
+                namespace="kube-system",
+                job_name=~"descheduler-[0-9]+"
+              }
+            ) > 0
+          for: 2m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler job failed
+            description: >-
+              At least one retained Descheduler job has failed.
+              Inspect the corresponding Job and pod logs.
+
+        - alert: DeschedulerCronJobStuck
+          expr: |
+            (
+              kube_job_status_active{
+                namespace="kube-system",
+                job_name=~"descheduler-[0-9]+"
+              } > 0
+            )
+            and on (namespace, job_name)
+            (
+              time()
+              -
+              kube_job_status_start_time{
+                namespace="kube-system",
+                job_name=~"descheduler-[0-9]+"
+              }
+              > 600
+            )
+          for: 2m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler job is taking too long
+            description: >-
+              A Descheduler run has remained active for more than
+              ten minutes.
+
+        - alert: DeschedulerCronJobSuspended
+          expr: |
+            kube_cronjob_spec_suspend{
+              namespace="kube-system",
+              cronjob="descheduler"
+            } == 1
+          for: 5m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler CronJob is suspended
+            description: >-
+              The Descheduler CronJob has been suspended and will
+              not perform scheduled balancing runs.
+
+        - alert: DeschedulerCronJobDelayed
+          expr: |
+            (
+              time()
+              -
+              kube_cronjob_next_schedule_time{
+                namespace="kube-system",
+                cronjob="descheduler"
+              }
+              > 900
+            )
+            and on (namespace, cronjob)
+            (
+              kube_cronjob_spec_suspend{
+                namespace="kube-system",
+                cronjob="descheduler"
+              } == 0
+            )
+          for: 5m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler CronJob missed its schedule
+            description: >-
+              The Descheduler CronJob is more than fifteen minutes
+              beyond its expected next execution time.
+
+        - alert: DeschedulerNoSuccessfulRun
+          expr: |
+            (
+              time()
+              -
+              kube_cronjob_status_last_successful_time{
+                namespace="kube-system",
+                cronjob="descheduler"
+              }
+              > 25200
+            )
+            or
+            (
+              (
+                time()
+                -
+                kube_cronjob_created{
+                  namespace="kube-system",
+                  cronjob="descheduler"
+                }
+                > 25200
+              )
+              unless on (namespace, cronjob)
+              kube_cronjob_status_last_successful_time{
+                namespace="kube-system",
+                cronjob="descheduler"
+              }
+            )
+          for: 10m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler has not completed successfully
+            description: >-
+              Descheduler has not recorded a successful run during
+              the last seven hours.
+
+    - name: descheduler.evictions
+      rules:
+        - alert: DeschedulerExcessiveEvictions
+          expr: |
+            sum(
+              increase(
+                pods_evicted_total[24h]
+              )
+            ) > 8
+          for: 5m
+          labels:
+            severity: warning
+            namespace: kube-system
+          annotations:
+            summary: Descheduler eviction volume exceeded policy
+            description: >-
+              More than eight Descheduler evictions were observed
+              during the last 24 hours. The scheduled policy should
+              normally permit no more than eight.
