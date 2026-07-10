@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-gateway-control-plane
+  namespace: envoy-gateway-system
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      control-plane: envoy-gateway
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      relabelings:
+        - targetLabel: monitor_component
+          replacement: envoy-gateway
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-gateway-proxies
+  namespace: envoy-gateway-system
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+      app.kubernetes.io/component: proxy
+  podMetricsEndpoints:
+    - port: metrics
+      path: /stats/prometheus
+      interval: 30s
+      relabelings:
+        - targetLabel: monitor_component
+          replacement: envoy-proxy
+        - sourceLabels:
+            - __meta_kubernetes_pod_label_gateway_envoyproxy_io_owning_gateway_name
+          targetLabel: gateway
+        - sourceLabels:
+            - __meta_kubernetes_pod_label_gateway_envoyproxy_io_owning_gateway_namespace
+          targetLabel: gateway_namespace

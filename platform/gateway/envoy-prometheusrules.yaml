@@ -1,0 +1,151 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: envoy-gateway
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: envoy-gateway.availability
+      rules:
+        - alert: EnvoyGatewayControlPlaneUnavailable
+          expr: |
+            absent(
+              up{monitor_component="envoy-gateway"}
+            )
+            or
+            max(
+              up{monitor_component="envoy-gateway"}
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: envoy-gateway-system
+          annotations:
+            summary: Envoy Gateway control plane is unavailable
+            description: >-
+              Prometheus has been unable to scrape the Envoy Gateway
+              control-plane metrics endpoint for more than five minutes.
+
+        - alert: EnvoyGatewayProxyUnavailable
+          expr: |
+            min by (
+              gateway_namespace,
+              gateway
+            ) (
+              up{monitor_component="envoy-proxy"}
+            ) == 0
+            or
+            (
+              kube_deployment_status_replicas_available{
+                namespace="envoy-gateway-system",
+                deployment=~"envoy-platform-gateway-.*"
+              }
+              <
+              kube_deployment_spec_replicas{
+                namespace="envoy-gateway-system",
+                deployment=~"envoy-platform-gateway-.*"
+              }
+            )
+          for: 5m
+          labels:
+            severity: critical
+            namespace: envoy-gateway-system
+          annotations:
+            summary: Envoy Gateway proxy is unavailable
+            description: >-
+              An Envoy proxy metrics target or generated proxy
+              deployment has remained unavailable for five minutes.
+
+    - name: envoy-gateway.traffic
+      rules:
+        - alert: EnvoyGatewayHigh5xxRate
+          expr: |
+            (
+              sum by (
+                gateway_namespace,
+                gateway
+              ) (
+                rate(
+                  envoy_http_downstream_rq_xx{
+                    envoy_response_code_class="5"
+                  }[5m]
+                )
+              )
+              /
+              clamp_min(
+                sum by (
+                  gateway_namespace,
+                  gateway
+                ) (
+                  rate(
+                    envoy_http_downstream_rq_total[5m]
+                  )
+                ),
+                0.001
+              )
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            namespace: envoy-gateway-system
+          annotations:
+            summary: >-
+              Envoy Gateway {{ $labels.gateway }} has a high 5xx rate
+            description: >-
+              More than 5 percent of requests handled by gateway
+              {{ $labels.gateway_namespace }}/{{ $labels.gateway }}
+              have returned a 5xx response for ten minutes.
+
+        - alert: EnvoyGatewayUpstreamConnectionFailures
+          expr: |
+            sum by (
+              gateway_namespace,
+              gateway,
+              envoy_cluster_name
+            ) (
+              increase(
+                envoy_cluster_upstream_cx_connect_fail[15m]
+              )
+            ) > 5
+          labels:
+            severity: warning
+            namespace: envoy-gateway-system
+          annotations:
+            summary: >-
+              Envoy Gateway is failing to connect to an upstream
+            description: >-
+              Gateway {{ $labels.gateway_namespace }}/{{ $labels.gateway }}
+              recorded more than five connection failures for upstream
+              {{ $labels.envoy_cluster_name }} during the last
+              15 minutes.
+
+        - alert: EnvoyGatewayNoHealthyUpstream
+          expr: |
+            min by (
+              gateway_namespace,
+              gateway,
+              envoy_cluster_name
+            ) (
+              envoy_cluster_membership_healthy
+            ) == 0
+            and
+            max by (
+              gateway_namespace,
+              gateway,
+              envoy_cluster_name
+            ) (
+              envoy_cluster_membership_total
+            ) > 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: envoy-gateway-system
+          annotations:
+            summary: >-
+              Envoy Gateway upstream has no healthy endpoints
+            description: >-
+              Upstream {{ $labels.envoy_cluster_name }} on gateway
+              {{ $labels.gateway_namespace }}/{{ $labels.gateway }}
+              has had no healthy endpoints for five minutes.

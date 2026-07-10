@@ -7,3 +7,19 @@ resources:
   - gateway.yaml
   - internal-envoyproxy.yaml
   - internal-gateway.yaml
+  - envoy-monitoring.yaml
+  - envoy-prometheusrules.yaml
+
+configMapGenerator:
+  - name: envoy-gateway-grafana-dashboards
+    namespace: monitoring
+    files:
+      - envoy-gateway-global.json=dashboards/envoy-gateway-global.json
+      - envoy-proxy-global.json=dashboards/envoy-proxy-global.json
+      - envoy-clusters.json=dashboards/envoy-clusters.json
+      - envoy-resources.json=dashboards/envoy-resources.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
