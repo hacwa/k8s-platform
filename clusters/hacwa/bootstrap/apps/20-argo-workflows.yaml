@@ -101,7 +101,7 @@ spec:
               - email
               - groups
 
-            customGroupClaimName: groups
+            userInfoPath: /protocol/openid-connect/userinfo
 
             filterGroupsRegex:
               - '^/ArgoWorkflowsAdmins$'
