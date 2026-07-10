@@ -1,0 +1,300 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "25"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.12.3
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        crds:
+          enabled: true
+          upgradeJob:
+            enabled: false
+
+        defaultRules:
+          create: true
+          rules:
+            etcd: true
+            kubeControllerManager: false
+            kubeProxy: false
+            kubeSchedulerAlerting: false
+            kubeSchedulerRecording: false
+            windows: false
+
+        windowsMonitoring:
+          enabled: false
+
+        kubeControllerManager:
+          enabled: false
+
+        kubeScheduler:
+          enabled: false
+
+        kubeProxy:
+          enabled: false
+
+        kubeEtcd:
+          enabled: true
+          endpoints:
+            - 10.0.18.2
+            - 10.0.18.3
+            - 10.0.18.4
+          service:
+            enabled: true
+            port: 2379
+            targetPort: 2379
+          serviceMonitor:
+            enabled: true
+            scheme: https
+            insecureSkipVerify: false
+            caFile: /etc/prometheus/secrets/etcd-client-cert/etcd-ca
+            certFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client
+            keyFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client-key
+            bearerTokenFile: ""
+
+        alertmanager:
+          enabled: true
+          ingress:
+            enabled: false
+          route:
+            main:
+              enabled: false
+          config:
+            global:
+              resolve_timeout: 5m
+              smtp_smarthost: smtp.fastmail.com:587
+              smtp_from: kubernetes-alerts@hacwa.co.uk
+              smtp_auth_username: fastmail@hacwa.co.uk
+              smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp/smtp-password
+              smtp_require_tls: true
+            route:
+              receiver: email-notifications
+              group_by:
+                - namespace
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+              routes:
+                - receiver: "null"
+                  matchers:
+                    - alertname = "Watchdog"
+            receivers:
+              - name: "null"
+              - name: email-notifications
+                email_configs:
+                  - to: kubernetes-alerts@hacwa.co.uk
+                    send_resolved: true
+            inhibit_rules:
+              - source_matchers:
+                  - severity = critical
+                target_matchers:
+                  - severity =~ warning|info
+                equal:
+                  - namespace
+                  - alertname
+              - source_matchers:
+                  - severity = warning
+                target_matchers:
+                  - severity = info
+                equal:
+                  - namespace
+                  - alertname
+              - source_matchers:
+                  - alertname = InfoInhibitor
+                target_matchers:
+                  - severity = info
+                equal:
+                  - namespace
+              - target_matchers:
+                  - alertname = InfoInhibitor
+          alertmanagerSpec:
+            replicas: 1
+            retention: 120h
+            secrets:
+              - alertmanager-smtp
+            persistentVolumeClaimRetentionPolicy:
+              whenDeleted: Retain
+              whenScaled: Retain
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: rook-ceph-block
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+        grafana:
+          enabled: true
+          testFramework:
+            enabled: false
+          ingress:
+            enabled: false
+          route:
+            main:
+              enabled: false
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          deploymentStrategy:
+            type: Recreate
+          persistence:
+            enabled: true
+            type: pvc
+            storageClassName: rook-ceph-block
+            accessModes:
+              - ReadWriteOnce
+            size: 10Gi
+            finalizers:
+              - kubernetes.io/pvc-protection
+          defaultDashboardsEnabled: true
+          defaultDashboardsTimezone: browser
+          defaultDashboardsEditable: true
+          extraSecretMounts:
+            - name: grafana-oauth
+              secretName: grafana-oauth
+              mountPath: /etc/secrets/grafana-oauth
+              readOnly: true
+          grafana.ini:
+            server:
+              domain: grafana.hacwa.co.uk
+              root_url: https://grafana.hacwa.co.uk
+              enforce_domain: true
+            auth:
+              disable_login_form: false
+            auth.generic_oauth:
+              enabled: true
+              name: SingleSignOn
+              allow_sign_up: true
+              client_id: $__file{/etc/secrets/grafana-oauth/client-id}
+              client_secret: $__file{/etc/secrets/grafana-oauth/client-secret}
+              scopes: openid email profile groups
+              auth_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/auth
+              token_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/token
+              api_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/userinfo
+              use_refresh_token: true
+              skip_org_role_sync: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          serviceMonitor:
+            enabled: true
+          sidecar:
+            dashboards:
+              enabled: true
+              searchNamespace: ALL
+            datasources:
+              enabled: true
+              defaultDatasourceEnabled: true
+              isDefaultDatasource: true
+
+        prometheus:
+          enabled: true
+          ingress:
+            enabled: false
+          route:
+            main:
+              enabled: false
+          prometheusSpec:
+            replicas: 1
+            retention: 15d
+            retentionSize: 40GB
+            enableAdminAPI: false
+            secrets:
+              - etcd-client-cert
+            serviceMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
+            podMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelector: {}
+            podMonitorNamespaceSelector: {}
+            ruleSelectorNilUsesHelmValues: false
+            ruleSelector: {}
+            ruleNamespaceSelector: {}
+            probeSelectorNilUsesHelmValues: false
+            probeSelector: {}
+            probeNamespaceSelector: {}
+            scrapeConfigSelectorNilUsesHelmValues: false
+            scrapeConfigSelector: {}
+            scrapeConfigNamespaceSelector: {}
+            persistentVolumeClaimRetentionPolicy:
+              whenDeleted: Retain
+              whenScaled: Retain
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: rook-ceph-block
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 50Gi
+            resources:
+              requests:
+                cpu: 500m
+                memory: 2Gi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+
+        prometheusOperator:
+          enabled: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        prometheus-node-exporter:
+          tolerations:
+            - operator: Exists
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
