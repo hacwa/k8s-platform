@@ -1,0 +1,144 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-workflows
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-workflows
+    targetRevision: 1.0.19
+    helm:
+      values: |
+        images:
+          pullPolicy: IfNotPresent
+
+        crds:
+          install: true
+          keep: true
+          full: false
+
+        singleNamespace: true
+        createAggregateRoles: true
+
+        workflow:
+          serviceAccount:
+            create: true
+            createSecret: true
+            name: argo-workflow
+          rbac:
+            create: true
+
+        controller:
+          workflowNamespaces:
+            - argo-workflows
+
+          clusterWorkflowTemplates:
+            enabled: false
+
+          metricsConfig:
+            enabled: true
+            path: /metrics
+            interval: 30s
+            port: 9090
+            secure: false
+            portName: metrics
+            servicePort: 8080
+            servicePortName: metrics
+
+          serviceLabels:
+            monitor_component: argo-workflows-controller
+
+          serviceMonitor:
+            enabled: true
+            additionalLabels:
+              release: kube-prometheus-stack
+            targetLabels:
+              - monitor_component
+
+          retentionPolicy:
+            completed: 20
+            failed: 10
+            errored: 10
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+
+        server:
+          enabled: true
+          secure: false
+          serviceType: ClusterIP
+          servicePort: 2746
+          serviceTargetPort: 2746
+          servicePortName: http
+
+          authModes:
+            - sso
+
+          sso:
+            enabled: true
+            issuer: https://keycloak.hacwa.co.uk/realms/master
+            redirectUrl: https://argoworkflows.hacwa.co.uk/oauth2/callback
+
+            clientId:
+              name: argo-workflows-sso
+              key: client-id
+
+            clientSecret:
+              name: argo-workflows-sso
+              key: client-secret
+
+            scopes:
+              - openid
+              - profile
+              - email
+              - groups
+
+            customGroupClaimName: groups
+
+            filterGroupsRegex:
+              - '^/ArgoWorkflowsAdmins$'
+
+            sessionExpiry: 10h
+
+            rbac:
+              enabled: true
+              secretWhitelist:
+                - argo-workflows-sso-admin.service-account-token
+
+          clusterWorkflowTemplates:
+            enabled: false
+
+          livenessProbe:
+            enabled: true
+            httpGet:
+              port: 2746
+              path: /
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-workflows
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

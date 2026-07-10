@@ -1,0 +1,132 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argo-workflows
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: argo-workflows.availability
+      rules:
+        - alert: ArgoWorkflowsControllerUnavailable
+          expr: |
+            absent(
+              up{
+                monitor_component="argo-workflows-controller"
+              }
+            )
+            or
+            max(
+              up{
+                monitor_component="argo-workflows-controller"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argo-workflows
+          annotations:
+            summary: Argo Workflows controller is unavailable
+            description: >-
+              Prometheus has been unable to scrape the Argo Workflows
+              controller for more than five minutes.
+
+        - alert: ArgoWorkflowsServerUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="argo-workflows",
+              deployment="argo-workflows-server"
+            }
+            <
+            kube_deployment_spec_replicas{
+              namespace="argo-workflows",
+              deployment="argo-workflows-server"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argo-workflows
+          annotations:
+            summary: Argo Workflows server is unavailable
+            description: >-
+              The Argo Workflows server has fewer available replicas
+              than requested for more than five minutes.
+
+        - alert: ArgoWorkflowsControllerNotLeader
+          expr: |
+            argo_workflows_is_leader == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argo-workflows
+          annotations:
+            summary: Argo Workflows controller is not active
+            description: >-
+              The single Argo Workflows controller has not reported
+              itself as leader for more than five minutes.
+
+    - name: argo-workflows.executions
+      rules:
+        - alert: ArgoWorkflowFailed
+          expr: |
+            increase(
+              argo_workflows_total_count{
+                phase="Failed"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: argo-workflows
+          annotations:
+            summary: An Argo Workflow failed
+            description: >-
+              One or more Argo Workflows entered the Failed phase
+              during the last 15 minutes.
+
+        - alert: ArgoWorkflowErrored
+          expr: |
+            increase(
+              argo_workflows_total_count{
+                phase="Error"
+              }[15m]
+            ) > 0
+          labels:
+            severity: critical
+            namespace: argo-workflows
+          annotations:
+            summary: An Argo Workflow entered the Error phase
+            description: >-
+              One or more Argo Workflows entered the Error phase
+              during the last 15 minutes.
+
+        - alert: ArgoWorkflowsControllerErrors
+          expr: |
+            sum(
+              increase(
+                argo_workflows_error_count[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            namespace: argo-workflows
+          annotations:
+            summary: Argo Workflows controller errors detected
+            description: >-
+              The workflow controller recorded one or more internal
+              errors during the last 15 minutes.
+
+        - alert: ArgoWorkflowsQueueBacklog
+          expr: |
+            argo_workflows_queue_depth_gauge{
+              queue_name="workflow_queue"
+            } > 20
+          for: 15m
+          labels:
+            severity: warning
+            namespace: argo-workflows
+          annotations:
+            summary: Argo Workflows reconciliation queue is backed up
+            description: >-
+              More than 20 workflows have remained queued for
+              reconciliation for at least 15 minutes.
