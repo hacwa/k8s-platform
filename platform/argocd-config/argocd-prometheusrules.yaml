@@ -1,0 +1,158 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: argocd.applications
+      rules:
+        - alert: ArgoCDApplicationOutOfSync
+          expr: |
+            argocd_app_info{
+              namespace="argocd",
+              sync_status="OutOfSync"
+            } == 1
+          for: 15m
+          labels:
+            severity: warning
+            namespace: argocd
+          annotations:
+            summary: >-
+              Argo CD application {{ $labels.name }} is OutOfSync
+            description: >-
+              Application {{ $labels.name }} in project
+              {{ $labels.project }} has remained OutOfSync for more
+              than 15 minutes.
+
+        - alert: ArgoCDApplicationDegraded
+          expr: |
+            argocd_app_info{
+              namespace="argocd",
+              health_status="Degraded"
+            } == 1
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argocd
+          annotations:
+            summary: >-
+              Argo CD application {{ $labels.name }} is degraded
+            description: >-
+              Application {{ $labels.name }} in project
+              {{ $labels.project }} has remained degraded for more
+              than 5 minutes.
+
+        - alert: ArgoCDApplicationSyncFailed
+          expr: |
+            increase(
+              argocd_app_sync_total{
+                namespace="argocd",
+                phase=~"Error|Failed"
+              }[15m]
+            ) > 0
+          labels:
+            severity: warning
+            namespace: argocd
+          annotations:
+            summary: >-
+              Argo CD sync failed for {{ $labels.name }}
+            description: >-
+              Application {{ $labels.name }} recorded a
+              {{ $labels.phase }} sync operation during the last
+              15 minutes.
+
+    - name: argocd.repositories
+      rules:
+        - alert: ArgoCDRepositoryFetchFailure
+          expr: |
+            increase(argocd_git_fetch_fail_total[15m]) > 0
+          labels:
+            severity: warning
+            namespace: argocd
+          annotations:
+            summary: Argo CD repository fetch failed
+            description: >-
+              The Argo CD repository server recorded one or more
+              Git fetch failures during the last 15 minutes.
+
+    - name: argocd.components
+      rules:
+        - alert: ArgoCDApplicationControllerUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="argocd",
+                service="argocd-metrics"
+              }
+            )
+            or
+            max by (namespace, service) (
+              up{
+                namespace="argocd",
+                service="argocd-metrics"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argocd
+          annotations:
+            summary: Argo CD application controller is unavailable
+            description: >-
+              Prometheus has been unable to scrape the Argo CD
+              application-controller metrics endpoint for more than
+              5 minutes.
+
+        - alert: ArgoCDRepoServerUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="argocd",
+                service="argocd-repo-server"
+              }
+            )
+            or
+            max by (namespace, service) (
+              up{
+                namespace="argocd",
+                service="argocd-repo-server"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argocd
+          annotations:
+            summary: Argo CD repository server is unavailable
+            description: >-
+              Prometheus has been unable to scrape the Argo CD
+              repository-server metrics endpoint for more than
+              5 minutes.
+
+        - alert: ArgoCDAPIServerUnavailable
+          expr: |
+            absent(
+              up{
+                namespace="argocd",
+                service="argocd-server-metrics"
+              }
+            )
+            or
+            max by (namespace, service) (
+              up{
+                namespace="argocd",
+                service="argocd-server-metrics"
+              }
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: argocd
+          annotations:
+            summary: Argo CD API server metrics are unavailable
+            description: >-
+              Prometheus has been unable to scrape the Argo CD API
+              server metrics endpoint for more than 5 minutes.
