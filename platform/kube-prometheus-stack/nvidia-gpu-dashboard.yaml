@@ -1,0 +1,351 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-gpu-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  nvidia-gpu.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "max": 100,
+              "min": 0,
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_UTIL{exported_pod=\"\"})",
+              "legendFormat": "{{node}} GPU {{gpu}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "GPU utilisation",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "unit": "gbytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) / 1024",
+              "legendFormat": "{{node}} GPU {{gpu}} used",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "editorMode": "code",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE{exported_pod=\"\"}) / 1024",
+              "legendFormat": "{{node}} GPU {{gpu}} free",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "GPU framebuffer memory",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 3,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "100 * max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) / (max by (node, gpu, modelName) (DCGM_FI_DEV_FB_USED{exported_pod=\"\"}) + max by (node, gpu, modelName) (DCGM_FI_DEV_FB_FREE{exported_pod=\"\"}))",
+              "legendFormat": "{{node}} GPU {{gpu}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "VRAM utilisation",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 80
+                  },
+                  {
+                    "color": "red",
+                    "value": 88
+                  }
+                ]
+              },
+              "unit": "celsius"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 4,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_GPU_TEMP{exported_pod=\"\"})",
+              "legendFormat": "{{node}} GPU {{gpu}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "GPU temperature",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "unit": "watt"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 5,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "max by (node, gpu, modelName) (DCGM_FI_DEV_POWER_USAGE{exported_pod=\"\"})",
+              "legendFormat": "{{node}} GPU {{gpu}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "GPU power usage",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "max": 100,
+              "min": 0,
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 15
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "editorMode": "code",
+              "expr": "max by (exported_namespace, exported_pod, exported_container, vgpu, node) (DCGM_FI_DEV_GPU_UTIL{exported_pod!=\"\"})",
+              "legendFormat": "{{exported_namespace}}/{{exported_pod}} vGPU {{vgpu}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Kubernetes GPU workloads",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 39,
+      "tags": [
+        "nvidia",
+        "gpu",
+        "dcgm",
+        "kubernetes"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timezone": "browser",
+      "title": "NVIDIA GPU / DCGM",
+      "uid": "nvidia-dcgm-gpu",
+      "version": 1,
+      "weekStart": ""
+    }

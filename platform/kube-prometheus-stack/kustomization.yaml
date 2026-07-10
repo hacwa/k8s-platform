@@ -5,3 +5,5 @@ resources:
   - alertmanager-httproute.yaml
   - prometheus-httproute.yaml
   - etcd-scrapeconfig.yaml
+  - nvidia-gpu-dashboard.yaml
+  - nvidia-gpu-rules.yaml

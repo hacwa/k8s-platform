@@ -1,0 +1,87 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: nvidia-gpu
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: nvidia-gpu.rules
+      rules:
+        - alert: NvidiaDcgmExporterUnavailable
+          expr: |
+            absent(up{job="nvidia-dcgm-exporter"})
+            or
+            up{job="nvidia-dcgm-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: nvidia-dcgm-exporter
+          annotations:
+            summary: NVIDIA DCGM Exporter is unavailable
+            description: Prometheus has been unable to scrape NVIDIA DCGM Exporter for more than five minutes.
+
+        - alert: NvidiaGpuTemperatureHigh
+          expr: |
+            max by (node, gpu, modelName) (
+              DCGM_FI_DEV_GPU_TEMP{exported_pod=""}
+            ) > 80
+          for: 10m
+          labels:
+            severity: warning
+            namespace: nvidia-dcgm-exporter
+          annotations:
+            summary: NVIDIA GPU temperature is high
+            description: GPU {{ $labels.gpu }} on {{ $labels.node }} has remained above 80°C for ten minutes. Current temperature is {{ $value }}°C.
+
+        - alert: NvidiaGpuTemperatureHigh
+          expr: |
+            max by (node, gpu, modelName) (
+              DCGM_FI_DEV_GPU_TEMP{exported_pod=""}
+            ) > 88
+          for: 5m
+          labels:
+            severity: critical
+            namespace: nvidia-dcgm-exporter
+          annotations:
+            summary: NVIDIA GPU temperature is critical
+            description: GPU {{ $labels.gpu }} on {{ $labels.node }} has remained above 88°C for five minutes. Current temperature is {{ $value }}°C.
+
+        - alert: NvidiaGpuMemoryUsageHigh
+          expr: |
+            100
+            *
+            max by (node, gpu, modelName) (
+              DCGM_FI_DEV_FB_USED{exported_pod=""}
+            )
+            /
+            (
+              max by (node, gpu, modelName) (
+                DCGM_FI_DEV_FB_USED{exported_pod=""}
+              )
+              +
+              max by (node, gpu, modelName) (
+                DCGM_FI_DEV_FB_FREE{exported_pod=""}
+              )
+            ) > 90
+          for: 15m
+          labels:
+            severity: warning
+            namespace: nvidia-dcgm-exporter
+          annotations:
+            summary: NVIDIA GPU memory usage is high
+            description: GPU {{ $labels.gpu }} on {{ $labels.node }} has remained above 90% VRAM utilisation for fifteen minutes. Current usage is {{ printf "%.1f" $value }}%.
+
+        - alert: NvidiaGpuPcieReplayErrors
+          expr: |
+            increase(
+              DCGM_FI_DEV_PCIE_REPLAY_COUNTER{exported_pod=""}[15m]
+            ) > 0
+          for: 5m
+          labels:
+            severity: warning
+            namespace: nvidia-dcgm-exporter
+          annotations:
+            summary: NVIDIA GPU PCIe replay errors detected
+            description: GPU {{ $labels.gpu }} on {{ $labels.node }} reported {{ $value }} PCIe replay events in the last fifteen minutes.
