@@ -24,3 +24,10 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    - name: jvb-udp
+      port: 10000
+      protocol: UDP
+      allowedRoutes:
+        namespaces:
+          from: All
