@@ -1,0 +1,42 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: kube-etcd
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: kube-etcd
+  scheme: HTTPS
+  metricsPath: /metrics
+  scrapeInterval: 30s
+  scrapeTimeout: 10s
+  staticConfigs:
+    - targets:
+        - 10.0.18.2:2379
+      labels:
+        instance: k8s-etcd-01
+        namespace: kube-system
+    - targets:
+        - 10.0.18.3:2379
+      labels:
+        instance: k8s-etcd-02
+        namespace: kube-system
+    - targets:
+        - 10.0.18.4:2379
+      labels:
+        instance: k8s-etcd-03
+        namespace: kube-system
+  tlsConfig:
+    ca:
+      secret:
+        name: etcd-client-cert
+        key: etcd-ca
+    cert:
+      secret:
+        name: etcd-client-cert
+        key: etcd-client
+    keySecret:
+      name: etcd-client-cert
+      key: etcd-client-key
+    insecureSkipVerify: false

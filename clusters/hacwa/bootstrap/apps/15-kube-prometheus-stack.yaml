@@ -43,22 +43,11 @@ spec:
 
         kubeEtcd:
           enabled: true
-          endpoints:
-            - 10.0.18.2
-            - 10.0.18.3
-            - 10.0.18.4
+          endpoints: []
           service:
-            enabled: true
-            port: 2379
-            targetPort: 2379
+            enabled: false
           serviceMonitor:
-            enabled: true
-            scheme: https
-            insecureSkipVerify: false
-            caFile: /etc/prometheus/secrets/etcd-client-cert/etcd-ca
-            certFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client
-            keyFile: /etc/prometheus/secrets/etcd-client-cert/etcd-client-key
-            bearerTokenFile: ""
+            enabled: false
 
         alertmanager:
           enabled: true
@@ -223,8 +212,6 @@ spec:
             retention: 15d
             retentionSize: 40GB
             enableAdminAPI: false
-            secrets:
-              - etcd-client-cert
             serviceMonitorSelectorNilUsesHelmValues: false
             serviceMonitorSelector: {}
             serviceMonitorNamespaceSelector: {}
@@ -294,7 +281,7 @@ spec:
     namespace: monitoring
   syncPolicy:
     automated:
-      prune: false
+      prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
