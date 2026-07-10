@@ -31,11 +31,24 @@ spec:
           create: true
           name: ""
 
+        kubernetes:
+          enablePodLabels: true
+          enablePodUID: false
+          podLabelAllowlistRegex:
+            - '^app$'
+            - '^app\.kubernetes\.io/.*$'
+          rbac:
+            create: true
+
+        extraEnv:
+          - name: KUBERNETES_VIRTUAL_GPUS
+            value: "true"
+
         service:
           enable: true
           type: ClusterIP
           port: 9400
-          internalTrafficPolicy: Local
+          internalTrafficPolicy: Cluster
 
         serviceMonitor:
           enabled: true
