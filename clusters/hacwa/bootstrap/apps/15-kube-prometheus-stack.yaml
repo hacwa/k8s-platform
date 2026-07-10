@@ -116,6 +116,8 @@ spec:
               - target_matchers:
                   - alertname = InfoInhibitor
           alertmanagerSpec:
+            externalUrl: https://alertmanager.hacwa.internal
+            routePrefix: /
             replicas: 1
             retention: 120h
             secrets:
