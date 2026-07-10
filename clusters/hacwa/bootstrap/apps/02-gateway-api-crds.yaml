@@ -8,16 +8,24 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/hacwa/k8s-platform.git
-    targetRevision: main
-    path: platform/gateway-api-crds
+    repoURL: registry-1.docker.io/envoyproxy
+    chart: gateway-crds-helm
+    targetRevision: v1.8.2
+    helm:
+      values: |
+        crds:
+          gatewayAPI:
+            enabled: true
+            channel: experimental
+          envoyGateway:
+            enabled: false
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: envoy-gateway-system
   syncPolicy:
     automated:
       prune: false
       selfHeal: true
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=true
+      - ServerSideApply=true
