@@ -7,9 +7,12 @@ metadata:
     app.kubernetes.io/name: proxmox-pve-exporter
     app.kubernetes.io/part-of: kube-prometheus-stack
 spec:
+  scheme: HTTP
   metricsPath: /pve
   scrapeInterval: 30s
   scrapeTimeout: 25s
+  honorTimestamps: true
+  enableCompression: true
 
   params:
     module:
@@ -24,16 +27,30 @@ spec:
         - pve.hacwa.internal
 
   relabelings:
-    - sourceLabels:
+    - action: Replace
+      sourceLabels:
         - __address__
+      separator: ";"
+      regex: "(.*)"
+      replacement: "$1"
       targetLabel: __param_target
 
-    - sourceLabels:
+    - action: Replace
+      sourceLabels:
         - __param_target
+      separator: ";"
+      regex: "(.*)"
+      replacement: "$1"
       targetLabel: instance
 
-    - targetLabel: __address__
-      replacement: 10.0.0.227:9221
+    - action: Replace
+      separator: ";"
+      regex: "(.*)"
+      replacement: prometheus-pve-exporter.hacwa.internal:9221
+      targetLabel: __address__
 
-    - targetLabel: job
+    - action: Replace
+      separator: ";"
+      regex: "(.*)"
       replacement: proxmox-pve
+      targetLabel: job
