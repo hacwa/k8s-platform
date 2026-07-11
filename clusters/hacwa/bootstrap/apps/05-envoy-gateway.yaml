@@ -16,6 +16,11 @@ spec:
       values: |
         crds:
           enabled: false
+
+        config:
+          envoyGateway:
+            extensionApis:
+              enableBackend: true
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy-gateway-system
