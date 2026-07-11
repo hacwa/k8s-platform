@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 32400
+      protocol: TCP
+      targetPort: 32400
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: plex-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 32400
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 7876
+      protocol: TCP
+      targetPort: 7876
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: radarr-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 7876
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 18989
+      protocol: TCP
+      targetPort: 18989
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sonarr-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 18989
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sab-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 8088
+      protocol: TCP
+      targetPort: 8088
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sab-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 8088
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: request-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: request-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 5000
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 8181
+      protocol: TCP
+      targetPort: 8181
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: report-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 8181
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr-4k-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 7807
+      protocol: TCP
+      targetPort: 7807
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: radarr-4k-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 7807
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr-4k-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 8981
+      protocol: TCP
+      targetPort: 8981
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sonarr-4k-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 8981
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anime-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 8988
+      protocol: TCP
+      targetPort: 8988
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: anime-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.120
+    ports:
+      - name: http
+        port: 8988
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: holiday-external
+  namespace: external-services
+spec:
+  ports:
+    - name: http
+      port: 8087
+      protocol: TCP
+      targetPort: 8087
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: holiday-external
+  namespace: external-services
+subsets:
+  - addresses:
+      - ip: 10.0.0.125
+    ports:
+      - name: http
+        port: 8087
+        protocol: TCP
