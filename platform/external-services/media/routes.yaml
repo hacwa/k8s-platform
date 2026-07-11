@@ -267,3 +267,57 @@ spec:
           kind: Backend
           name: holiday-external
           weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: immich-external
+  namespace: external-services
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
+      namespace: platform-gateway
+      sectionName: https
+  hostnames:
+    - immich.hacwa.co.uk
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      timeouts:
+        request: 0s
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: immich-external
+          weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: lidarr-external
+  namespace: external-services
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
+      namespace: platform-gateway
+      sectionName: https
+  hostnames:
+    - lidarr.hacwa.co.uk
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      timeouts:
+        request: 0s
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: lidarr-external
+          weight: 1

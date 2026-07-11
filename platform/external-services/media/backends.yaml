@@ -107,3 +107,25 @@ spec:
     - ip:
         address: 10.0.0.125
         port: 8087
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: immich-external
+  namespace: external-services
+spec:
+  endpoints:
+    - ip:
+        address: 10.0.0.101
+        port: 2283
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: lidarr-external
+  namespace: external-services
+spec:
+  endpoints:
+    - ip:
+        address: 10.0.0.120
+        port: 8686
