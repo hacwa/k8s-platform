@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - proxmox-pve-scrapeconfig.yaml
+  - proxmox-pve-rules.yaml
   - grafana-httproute.yaml
   - alertmanager-httproute.yaml
   - prometheus-httproute.yaml
@@ -20,6 +21,14 @@ configMapGenerator:
       - ceph-cluster.json=dashboards/ceph/ceph-cluster.json
       - ceph-osd-single.json=dashboards/ceph/ceph-osd-single.json
       - ceph-pools.json=dashboards/ceph/ceph-pools.json
+
+  - name: proxmox-pve-grafana-dashboards
+    namespace: monitoring
+    files:
+      - proxmox-overview.json=dashboards/proxmox/proxmox-overview.json
+      - proxmox-nodes.json=dashboards/proxmox/proxmox-nodes.json
+      - proxmox-guests.json=dashboards/proxmox/proxmox-guests.json
+      - proxmox-storage.json=dashboards/proxmox/proxmox-storage.json
 
 generatorOptions:
   disableNameSuffixHash: true

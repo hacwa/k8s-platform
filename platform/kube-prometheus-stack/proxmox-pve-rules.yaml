@@ -1,0 +1,177 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: proxmox-pve
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: proxmox-pve-exporter
+    app.kubernetes.io/part-of: kube-prometheus-stack
+spec:
+  groups:
+    - name: proxmox-pve.availability
+      rules:
+        - alert: ProxmoxPVEExporterDown
+          expr: up{job="proxmox-pve"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Proxmox PVE exporter is unavailable
+            description: >-
+              Prometheus has been unable to scrape the Proxmox PVE
+              exporter for more than five minutes.
+
+        - alert: ProxmoxClusterUnavailable
+          expr: pve_up{job="proxmox-pve",id=~"cluster/.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: Proxmox cluster is unavailable
+            description: >-
+              Proxmox cluster object {{ $labels.id }} is reporting down.
+
+        - alert: ProxmoxNodeDown
+          expr: pve_up{job="proxmox-pve",id=~"node/.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: Proxmox node is down
+            description: >-
+              Proxmox node {{ $labels.id }} has been down for more
+              than two minutes.
+
+        - alert: ProxmoxStorageUnavailable
+          expr: pve_up{job="proxmox-pve",id=~"storage/.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox storage is unavailable
+            description: >-
+              Proxmox storage {{ $labels.id }} has been unavailable
+              for more than five minutes.
+
+        - alert: ProxmoxCriticalGuestDown
+          expr: >-
+            (
+              pve_guest_info{
+                job="proxmox-pve",
+                tags=~"(^|.*;)critical(;.*|$)"
+              }
+              * on(id)
+              pve_up{job="proxmox-pve"}
+            ) == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Critical Proxmox guest is down
+            description: >-
+              Guest {{ $labels.name }} ({{ $labels.id }}) on
+              {{ $labels.node }} has been down for more than five minutes.
+
+    - name: proxmox-pve.capacity
+      rules:
+        - alert: ProxmoxStorageNearlyFull
+          expr: >-
+            (
+              pve_disk_usage_bytes{
+                job="proxmox-pve",
+                id=~"storage/.*"
+              }
+              /
+              pve_disk_size_bytes{
+                job="proxmox-pve",
+                id=~"storage/.*"
+              }
+            ) > 0.85
+            and on(id)
+            pve_disk_size_bytes{
+              job="proxmox-pve",
+              id=~"storage/.*"
+            } > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox storage is over 85% full
+            description: >-
+              Storage {{ $labels.id }} has remained over 85% full
+              for more than 15 minutes.
+
+        - alert: ProxmoxStorageCritical
+          expr: >-
+            (
+              pve_disk_usage_bytes{
+                job="proxmox-pve",
+                id=~"storage/.*"
+              }
+              /
+              pve_disk_size_bytes{
+                job="proxmox-pve",
+                id=~"storage/.*"
+              }
+            ) > 0.95
+            and on(id)
+            pve_disk_size_bytes{
+              job="proxmox-pve",
+              id=~"storage/.*"
+            } > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Proxmox storage is over 95% full
+            description: >-
+              Storage {{ $labels.id }} has remained over 95% full
+              for more than ten minutes.
+
+        - alert: ProxmoxNodeHighMemory
+          expr: >-
+            (
+              pve_memory_usage_bytes{
+                job="proxmox-pve",
+                id=~"node/.*"
+              }
+              /
+              pve_memory_size_bytes{
+                job="proxmox-pve",
+                id=~"node/.*"
+              }
+            ) > 0.90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox node memory utilisation is high
+            description: >-
+              Node {{ $labels.id }} has remained above 90% memory
+              utilisation for more than 15 minutes.
+
+        - alert: ProxmoxNodeHighCPU
+          expr: >-
+            pve_cpu_usage_ratio{
+              job="proxmox-pve",
+              id=~"node/.*"
+            } > 0.90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox node CPU utilisation is high
+            description: >-
+              Node {{ $labels.id }} has remained above 90% CPU
+              utilisation for more than 15 minutes.
+
+        - alert: ProxmoxGuestsNotBackedUp
+          expr: pve_not_backed_up_total{job="proxmox-pve"} > 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Proxmox guests are not covered by backup jobs
+            description: >-
+              {{ $value | humanize }} Proxmox guests are not covered
+              by a configured Proxmox backup job.
