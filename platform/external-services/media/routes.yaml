@@ -5,7 +5,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -18,8 +20,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: plex-external
-          port: 32400
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: plex-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -28,7 +32,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -41,8 +47,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: radarr-external
-          port: 7876
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: radarr-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -51,7 +59,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -64,8 +74,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: sonarr-external
-          port: 18989
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: sonarr-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -74,7 +86,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -87,8 +101,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: sab-external
-          port: 8088
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: sab-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -97,7 +113,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -110,8 +128,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: request-external
-          port: 5000
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: request-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -120,7 +140,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -133,8 +155,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: report-external
-          port: 8181
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: report-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -143,7 +167,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -156,8 +182,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: radarr-4k-external
-          port: 7807
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: radarr-4k-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -166,7 +194,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -179,8 +209,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: sonarr-4k-external
-          port: 8981
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: sonarr-4k-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -189,7 +221,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -202,8 +236,10 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: anime-external
-          port: 8988
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: anime-external
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -212,7 +248,9 @@ metadata:
   namespace: external-services
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -225,5 +263,7 @@ spec:
       timeouts:
         request: 0s
       backendRefs:
-        - name: holiday-external
-          port: 8087
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: holiday-external
+          weight: 1
