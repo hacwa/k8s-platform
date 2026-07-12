@@ -83,7 +83,9 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: data
       spec:
         accessModes:
