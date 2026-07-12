@@ -28,5 +28,5 @@ spec:
                 sleep 5
               done
 
-              ollama pull qwen2.5:7b-instruct
+              ollama pull qwen3:8b
               ollama list
