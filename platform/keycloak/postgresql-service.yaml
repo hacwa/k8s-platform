@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-postgresql
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/name: keycloak-postgresql
+    app.kubernetes.io/part-of: keycloak
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: keycloak-postgresql
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
