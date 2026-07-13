@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-api
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: api
+spec:
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: minio-api
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: minio-api
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: api
+addressType: IPv4
+endpoints:
+  - addresses:
+      - 10.0.6.5
+    conditions:
+      ready: true
+ports:
+  - name: http
+    protocol: TCP
+    port: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-console
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: console
+spec:
+  ports:
+    - name: http
+      port: 9001
+      protocol: TCP
+      targetPort: 9001
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: minio-console
+  namespace: external-services
+  labels:
+    kubernetes.io/service-name: minio-console
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: console
+addressType: IPv4
+endpoints:
+  - addresses:
+      - 10.0.6.5
+    conditions:
+      ready: true
+ports:
+  - name: http
+    protocol: TCP
+    port: 9001

@@ -1,0 +1,71 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: minio-api
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: api
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: internal-gateway
+      namespace: platform-gateway
+      sectionName: https-internal-wildcard
+
+  hostnames:
+    - minio.hacwa.internal
+
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      timeouts:
+        request: 0s
+        backendRequest: 0s
+
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: minio-api
+          port: 9000
+          weight: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: minio-console
+  namespace: external-services
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: console
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: internal-gateway
+      namespace: platform-gateway
+      sectionName: https-internal-wildcard
+
+  hostnames:
+    - minio-console.hacwa.internal
+
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      timeouts:
+        request: 0s
+        backendRequest: 0s
+
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: minio-console
+          port: 9001
+          weight: 1
