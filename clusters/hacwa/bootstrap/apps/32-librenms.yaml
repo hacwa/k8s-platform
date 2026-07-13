@@ -28,6 +28,14 @@ spec:
           existingSecret: librenms-app
           timezone: Europe/London
 
+          extraEnvs:
+            - name: APP_URL
+              value: https://librenms.hacwa.co.uk
+            - name: APP_TRUSTED_PROXIES
+              value: 172.30.0.0/16
+            - name: SESSION_SECURE_COOKIE
+              value: "true"
+
           frontend:
             replicas: 1
 
