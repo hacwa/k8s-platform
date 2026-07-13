@@ -87,7 +87,6 @@ spec:
             existingSecret: librenms-mariadb
             existingSecretRootPasswordKey: mariadb-root-password
             existingSecretUserPasswordKey: mariadb-password
-            existingSecretReplicationPasswordKey: mariadb-password
 
           existingAuthSecret:
             name: librenms-mariadb
