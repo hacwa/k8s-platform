@@ -46,15 +46,15 @@ spec:
           portName: metrics
           port: 9252
 
+          serviceMonitor:
+            enabled: true
+            labels:
+              release: kube-prometheus-stack
+            interval: 30s
+
         service:
           enabled: true
           type: ClusterIP
-
-        serviceMonitor:
-          enabled: true
-          labels:
-            release: kube-prometheus-stack
-          interval: 30s
 
         runners:
           name: hacwa-kubernetes-instance-runner
@@ -131,6 +131,8 @@ spec:
                 deletionPolicy: Retain
                 template:
                   type: Opaque
+                  engineVersion: v2
+                  mergePolicy: Replace
                   data:
                     runner-registration-token: ""
                     runner-token: "{{`{{ .gitlab_runner_authentication_token }}`}}"
@@ -140,6 +142,9 @@ spec:
                   remoteRef:
                     key: hacwa_aws_secrets
                     property: gitlab_runner_authentication_token
+                    conversionStrategy: Default
+                    decodingStrategy: None
+                    metadataPolicy: None
 
   destination:
     server: https://kubernetes.default.svc
