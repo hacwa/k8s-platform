@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.description="LibreNMS with the Keycloak Socialite
 
 WORKDIR /opt/librenms
 
-RUN gosu librenms env \
+RUN su-exec librenms env \
       HOME=/home/librenms \
       COMPOSER_CACHE_DIR=/tmp/composer-cache \
       ./lnms plugin:add socialiteproviders/keycloak \
