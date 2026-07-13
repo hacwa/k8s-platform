@@ -1,0 +1,154 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlab-runner
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "32"
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.gitlab.io
+    chart: gitlab-runner
+    targetRevision: 0.84.2
+
+    helm:
+      releaseName: gitlab-runner
+      values: |
+        gitlabUrl: https://gitlab.hacwa.co.uk/
+
+        replicas: 1
+        concurrent: 4
+        checkInterval: 3
+        terminationGracePeriodSeconds: 300
+
+        rbac:
+          create: true
+          clusterWideAccess: false
+
+        serviceAccount:
+          create: true
+          name: gitlab-runner-manager
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+            ephemeral-storage: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+            ephemeral-storage: 1Gi
+
+        metrics:
+          enabled: true
+          portName: metrics
+          port: 9252
+
+        service:
+          enabled: true
+          type: ClusterIP
+
+        serviceMonitor:
+          enabled: true
+          labels:
+            release: kube-prometheus-stack
+          interval: 30s
+
+        runners:
+          name: hacwa-kubernetes-instance-runner
+          executor: kubernetes
+          secret: gitlab-runner-authentication
+
+          config: |
+            [[runners]]
+              name = "hacwa-kubernetes-instance-runner"
+              executor = "kubernetes"
+
+              [runners.kubernetes]
+                namespace = "gitlab-runner"
+                image = "ubuntu:24.04"
+                privileged = false
+                service_account = "gitlab-runner-jobs"
+                poll_timeout = 600
+
+                cpu_request = "100m"
+                memory_request = "256Mi"
+                ephemeral_storage_request = "1Gi"
+
+                cpu_limit = "4"
+                memory_limit = "8Gi"
+                ephemeral_storage_limit = "10Gi"
+
+                helper_cpu_request = "50m"
+                helper_memory_request = "128Mi"
+                helper_ephemeral_storage_request = "128Mi"
+
+                helper_cpu_limit = "500m"
+                helper_memory_limit = "512Mi"
+                helper_ephemeral_storage_limit = "1Gi"
+
+                service_cpu_request = "100m"
+                service_memory_request = "128Mi"
+                service_ephemeral_storage_request = "128Mi"
+
+                service_cpu_limit = "2"
+                service_memory_limit = "4Gi"
+                service_ephemeral_storage_limit = "4Gi"
+
+                [runners.kubernetes.pod_labels]
+                  "app.kubernetes.io/part-of" = "gitlab-runner"
+                  "hacwa.co.uk/workload" = "gitlab-ci-job"
+
+        extraObjects:
+          - apiVersion: v1
+            kind: ServiceAccount
+            metadata:
+              name: gitlab-runner-jobs
+              namespace: gitlab-runner
+              annotations:
+                argocd.argoproj.io/sync-wave: "-1"
+            automountServiceAccountToken: false
+
+          - apiVersion: external-secrets.io/v1
+            kind: ExternalSecret
+            metadata:
+              name: gitlab-runner-authentication
+              namespace: gitlab-runner
+              annotations:
+                argocd.argoproj.io/sync-wave: "-1"
+            spec:
+              refreshInterval: 1h
+
+              secretStoreRef:
+                kind: ClusterSecretStore
+                name: aws-secrets-manager
+
+              target:
+                name: gitlab-runner-authentication
+                creationPolicy: Owner
+                deletionPolicy: Retain
+                template:
+                  type: Opaque
+                  data:
+                    runner-registration-token: ""
+                    runner-token: "{{`{{ .gitlab_runner_authentication_token }}`}}"
+
+              data:
+                - secretKey: gitlab_runner_authentication_token
+                  remoteRef:
+                    key: hacwa_aws_secrets
+                    property: gitlab_runner_authentication_token
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitlab-runner
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
