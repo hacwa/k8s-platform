@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "22"
+    argocd.argoproj.io/ignore-healthcheck: "true"
 spec:
   project: default
   source:
