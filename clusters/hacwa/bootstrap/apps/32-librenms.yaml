@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: librenms
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "32"
+spec:
+  project: default
+  source:
+    repoURL: https://www.librenms.org/helm-charts
+    chart: librenms
+    targetRevision: 8.2.2
+    helm:
+      releaseName: librenms
+      values: |
+        librenms:
+          existingSecret: librenms-app
+          timezone: Europe/London
+
+          frontend:
+            replicas: 1
+
+          poller:
+            replicas: 1
+
+          rrdcached:
+            persistence:
+              enabled: true
+              journal:
+                storageClassName: rook-ceph-block
+                size: 1Gi
+              rrdcached:
+                storageClassName: rook-ceph-block
+                size: 20Gi
+
+        mysql:
+          enabled: true
+          architecture: standalone
+
+          auth:
+            database: librenms
+            username: librenms
+            existingSecret: librenms-mysql-auth
+
+          existingAuthSecret:
+            name: librenms-mysql-auth
+            key: mysql-user-password
+
+          standalone:
+            persistence:
+              enabled: true
+              storageClass: rook-ceph-block
+              size: 20Gi
+
+        redis:
+          enabled: true
+          architecture: standalone
+          auth:
+            enabled: false
+
+        ingress:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librenms
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
