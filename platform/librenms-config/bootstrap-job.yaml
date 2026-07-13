@@ -1,0 +1,148 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: librenms-config-bootstrap
+  namespace: librenms
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 60
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: librenms
+        app.kubernetes.io/component: config-bootstrap
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: configure
+          image: ghcr.io/hacwa/librenms-keycloak:26.6.1-keycloak-1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              cd /opt/librenms
+
+              echo "Waiting for the LibreNMS database..."
+
+              until gosu librenms php artisan migrate:status >/dev/null 2>&1; do
+                sleep 10
+              done
+
+              echo "Applying Keycloak configuration..."
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.listener \
+                '\SocialiteProviders\Keycloak\KeycloakExtendSocialite'
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.client_id \
+                librenms
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.client_secret \
+                "$KEYCLOAK_CLIENT_SECRET"
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.base_url \
+                https://keycloak.hacwa.co.uk
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.realm \
+                master
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.configs.keycloak.redirect \
+                https://librenms.hacwa.co.uk/auth/keycloak/callback
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.register \
+                true
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.redirect \
+                false
+
+              gosu librenms ./lnms config:set \
+                auth.socialite.default_role \
+                admin
+
+              echo "Applying SMTP configuration..."
+
+              gosu librenms ./lnms config:set email_backend smtp
+              gosu librenms ./lnms config:set email_from librenms-noreply@hacwa.co.uk
+              gosu librenms ./lnms config:set email_smtp_host smtp.fastmail.com
+              gosu librenms ./lnms config:set email_smtp_port 587
+              gosu librenms ./lnms config:set email_smtp_secure tls
+              gosu librenms ./lnms config:set email_smtp_auth true
+              gosu librenms ./lnms config:set email_smtp_username "$SMTP_USERNAME"
+              gosu librenms ./lnms config:set email_smtp_password "$SMTP_PASSWORD"
+              gosu librenms ./lnms config:set email_smtp_timeout 10
+
+              gosu librenms php artisan config:clear
+
+              echo "LibreNMS configuration applied."
+          env:
+            - name: HOME
+              value: /home/librenms
+
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-runtime
+                  key: appkey
+
+            - name: APP_URL
+              value: https://librenms.hacwa.co.uk
+
+            - name: DB_HOST
+              value: librenms-mysql
+
+            - name: DB_PORT
+              value: "3306"
+
+            - name: DB_DATABASE
+              value: librenms
+
+            - name: DB_USERNAME
+              value: librenms
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-mariadb
+                  key: mariadb-password
+
+            - name: REDIS_HOST
+              value: librenms-redis-master
+
+            - name: REDIS_PORT
+              value: "6379"
+
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-redis
+                  key: redis-password
+
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-runtime
+                  key: keycloak-client-secret
+
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-runtime
+                  key: smtp-username
+
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-runtime
+                  key: smtp-password

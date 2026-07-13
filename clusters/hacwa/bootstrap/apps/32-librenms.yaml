@@ -1,0 +1,151 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: librenms
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "32"
+spec:
+  project: default
+  source:
+    repoURL: https://www.librenms.org/helm-charts
+    chart: librenms
+    targetRevision: 8.2.2
+    helm:
+      releaseName: librenms
+      values: |
+        global:
+          security:
+            allowInsecureImages: true
+
+        librenms:
+          image:
+            repository: ghcr.io/hacwa/librenms-keycloak
+            tag: 26.6.1-keycloak-1
+            pullPolicy: IfNotPresent
+
+          existingSecret: librenms-runtime
+          timezone: Europe/London
+
+          configuration: |
+            $config['distributed_poller_group'] = '0';
+            $config['distributed_poller'] = true;
+
+          extraEnvs:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-redis
+                  key: redis-password
+
+          frontend:
+            enabled: true
+            replicas: 1
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: "1"
+                memory: 1Gi
+
+          poller:
+            replicas: 1
+            resources:
+              requests:
+                cpu: 500m
+                memory: 512Mi
+              limits:
+                cpu: "2"
+                memory: 2Gi
+
+          rrdcached:
+            enabled: true
+            persistence:
+              enabled: true
+              journal:
+                size: 1Gi
+                storageClassName: rook-ceph-block
+              rrdcached:
+                size: 20Gi
+                storageClassName: rook-ceph-block
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                cpu: "1"
+                memory: 2Gi
+
+        mysql:
+          enabled: true
+          architecture: standalone
+
+          auth:
+            username: librenms
+            database: librenms
+            existingSecret: librenms-mariadb
+            existingSecretRootPasswordKey: mariadb-root-password
+            existingSecretUserPasswordKey: mariadb-password
+
+          existingAuthSecret:
+            name: librenms-mariadb
+            key: mariadb-password
+
+          config:
+            myCnf: |
+              [mysqld]
+              character-set-server=utf8mb4
+              collation-server=utf8mb4_unicode_ci
+
+          standalone:
+            persistence:
+              enabled: true
+              storageClass: rook-ceph-block
+              size: 20Gi
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+
+        redis:
+          enabled: true
+          architecture: standalone
+
+          image:
+            repository: bitnamilegacy/redis
+
+          auth:
+            enabled: true
+            existingSecret: librenms-redis
+            existingSecretPasswordKey: redis-password
+
+          master:
+            disableCommands: []
+            persistence:
+              enabled: true
+              storageClass: rook-ceph-block
+              size: 2Gi
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+        ingress:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librenms
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
