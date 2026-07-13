@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: librenms-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "31"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/librenms-bootstrap
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librenms
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
