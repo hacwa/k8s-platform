@@ -7,6 +7,16 @@ metadata:
     argocd.argoproj.io/sync-wave: "32"
 spec:
   project: default
+
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: librenms-mysql
+      namespace: librenms
+      jsonPointers:
+        - /spec/volumeClaimTemplates/0/apiVersion
+        - /spec/volumeClaimTemplates/0/kind
+
   source:
     repoURL: https://www.librenms.org/helm-charts
     chart: librenms
@@ -56,6 +66,7 @@ spec:
         redis:
           enabled: true
           architecture: standalone
+
           auth:
             enabled: false
 
