@@ -8,9 +8,11 @@ policy:
       # Preserve the schedule without allowing backups to run.
       paused: false
 
-      # Prevent an immediate catch-up backup when the Schedule is first
-      # created or subsequently unpaused.
-      skipImmediately: true
+      # This is a one-shot Velero control field.
+      # Set it to true only for a deliberate one-time skip when creating or
+      # unpausing the schedule. Velero automatically resets it to false after
+      # consuming it, so false is the normal GitOps steady state.
+      skipImmediately: false
 
       # Standard five-field cron expression.
       # The chart adds CRON_TZ=Europe/London.
