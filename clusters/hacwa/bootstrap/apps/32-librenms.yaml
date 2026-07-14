@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "32"
+
 spec:
   project: default
 
@@ -21,6 +22,7 @@ spec:
     repoURL: https://www.librenms.org/helm-charts
     chart: librenms
     targetRevision: 8.2.2
+
     helm:
       releaseName: librenms
       values: |
@@ -29,9 +31,6 @@ spec:
           timezone: Europe/London
 
           configuration: |
-            require_once '/data/keycloak-provider/Provider.php';
-            require_once '/data/keycloak-provider/KeycloakExtendSocialite.php';
-
             $config['distributed_poller_group'] = '0';
             $config['distributed_poller'] = true;
             $config['base_url'] = 'https://librenms.hacwa.co.uk';
@@ -89,13 +88,15 @@ spec:
             replicas: 1
 
             extraVolumes:
-              - name: keycloak-provider
+              - name: keycloak-provider-init
                 configMap:
                   name: librenms-keycloak-provider
+                  defaultMode: 0755
 
             extraVolumeMounts:
-              - name: keycloak-provider
-                mountPath: /data/keycloak-provider
+              - name: keycloak-provider-init
+                mountPath: /etc/cont-init.d/99-keycloak-provider.sh
+                subPath: 99-keycloak-provider.sh
                 readOnly: true
 
           poller:
@@ -104,9 +105,11 @@ spec:
           rrdcached:
             persistence:
               enabled: true
+
               journal:
                 storageClassName: rook-ceph-block
                 size: 1Gi
+
               rrdcached:
                 storageClassName: rook-ceph-block
                 size: 20Gi
@@ -148,6 +151,7 @@ spec:
     automated:
       prune: false
       selfHeal: true
+
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true

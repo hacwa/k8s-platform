@@ -8,8 +8,7 @@ configMapGenerator:
   - name: librenms-keycloak-provider
     namespace: librenms
     files:
-      - Provider.php=keycloak-provider/Provider.php
-      - KeycloakExtendSocialite.php=keycloak-provider/KeycloakExtendSocialite.php
+      - 99-keycloak-provider.sh=keycloak-provider-init.sh
 
 generatorOptions:
   disableNameSuffixHash: true
