@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlab-runner-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "44"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/gitlab-runner-monitoring
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitlab-runner
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

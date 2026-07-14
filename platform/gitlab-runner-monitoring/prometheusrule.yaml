@@ -1,0 +1,171 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitlab-runner
+  namespace: gitlab-runner
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: gitlab-runner
+spec:
+  groups:
+    - name: gitlab-runner.availability
+      rules:
+        - alert: GitLabRunnerMetricsTargetMissing
+          expr: |
+            absent(
+              up{
+                namespace="gitlab-runner",
+                service="gitlab-runner"
+              }
+            )
+          for: 5m
+          labels:
+            severity: critical
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner metrics target is missing
+            description: >-
+              Prometheus has no GitLab Runner scrape target.
+
+        - alert: GitLabRunnerMetricsTargetDown
+          expr: |
+            up{
+              namespace="gitlab-runner",
+              service="gitlab-runner"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner metrics target is down
+            description: >-
+              Prometheus has been unable to scrape GitLab Runner for five
+              minutes.
+
+        - alert: GitLabRunnerDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="gitlab-runner",
+              deployment="gitlab-runner"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner manager is unavailable
+            description: >-
+              The GitLab Runner manager Deployment has no available replica.
+
+    - name: gitlab-runner.operation
+      rules:
+        - alert: GitLabRunnerConfigurationErrors
+          expr: |
+            sum(
+              increase(
+                gitlab_runner_configuration_loading_error_total[15m]
+              )
+            )
+            +
+            sum(
+              increase(
+                gitlab_runner_configuration_saving_error_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner configuration error
+            description: >-
+              GitLab Runner reported a configuration loading or saving error
+              during the last fifteen minutes.
+
+        - alert: GitLabRunnerInternalErrors
+          expr: |
+            sum(
+              increase(
+                gitlab_runner_errors_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner internal errors detected
+            description: >-
+              GitLab Runner reported one or more internal errors during the
+              last fifteen minutes.
+
+        - alert: GitLabRunnerWorkerFailures
+          expr: |
+            sum(
+              increase(
+                gitlab_runner_worker_feed_failures_total[15m]
+              )
+            )
+            +
+            sum(
+              increase(
+                gitlab_runner_worker_health_check_failures_total[15m]
+              )
+            )
+            +
+            sum(
+              increase(
+                gitlab_runner_worker_processing_failures_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner worker failures detected
+            description: >-
+              GitLab Runner reported worker feed, health-check, or processing
+              failures during the last fifteen minutes.
+
+        - alert: GitLabRunnerQueueDelayExceeded
+          expr: |
+            sum(
+              increase(
+                gitlab_runner_acceptable_job_queuing_duration_exceeded_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            component: gitlab-runner
+          annotations:
+            summary: GitLab jobs exceeded acceptable queue duration
+            description: >-
+              One or more jobs exceeded the configured acceptable queueing
+              duration during the last fifteen minutes.
+
+        - alert: GitLabRunnerQueueDepthHigh
+          expr: |
+            sum(gitlab_runner_job_queue_depth) > 4
+          for: 10m
+          labels:
+            severity: warning
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner queue depth is high
+            description: >-
+              More than four jobs have remained queued for ten minutes.
+
+        - alert: GitLabRunnerRequestConcurrencyExceeded
+          expr: |
+            sum(
+              increase(
+                gitlab_runner_request_concurrency_exceeded_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            component: gitlab-runner
+          annotations:
+            summary: GitLab Runner request concurrency exceeded
+            description: >-
+              GitLab Runner exceeded its request concurrency limit during the
+              last fifteen minutes.
