@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: librenms-external
+  namespace: librenms
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: librenms
+spec:
+  jobName: librenms-external
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_public
+
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+    scheme: http
+
+  targets:
+    staticConfig:
+      static:
+        - https://librenms.hacwa.co.uk/
+
+      labels:
+        application: librenms
+        endpoint: external

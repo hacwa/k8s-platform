@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - probe.yaml
+  - prometheusrule.yaml
+
+configMapGenerator:
+  - name: librenms-grafana-dashboard
+    namespace: monitoring
+    files:
+      - librenms.json=dashboard.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"

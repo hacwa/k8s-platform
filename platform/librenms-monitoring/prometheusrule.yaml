@@ -1,0 +1,241 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: librenms
+  namespace: librenms
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: librenms
+spec:
+  groups:
+    - name: librenms.availability
+      rules:
+        - alert: LibreNMSExternalEndpointDown
+          expr: |
+            probe_success{
+              job="librenms-external"
+            } == 0
+          for: 3m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS external endpoint is unavailable
+            description: >-
+              The external HTTPS probe for LibreNMS has failed for more than
+              three minutes.
+
+        - alert: LibreNMSFrontendUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="librenms",
+              deployment="librenms-frontend"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS frontend is unavailable
+            description: >-
+              The LibreNMS frontend Deployment has no available replica.
+
+        - alert: LibreNMSPollerUnavailable
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="librenms",
+              statefulset="librenms-poller"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS poller is unavailable
+            description: >-
+              The LibreNMS poller StatefulSet has no ready replica.
+
+        - alert: LibreNMSMySQLUnavailable
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="librenms",
+              statefulset="librenms-mysql"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS MySQL is unavailable
+            description: >-
+              The LibreNMS MySQL StatefulSet has no ready replica.
+
+        - alert: LibreNMSRedisUnavailable
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="librenms",
+              statefulset="librenms-redis-master"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS Redis is unavailable
+            description: >-
+              The LibreNMS Redis StatefulSet has no ready replica.
+
+        - alert: LibreNMSRRDCachedUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="librenms",
+              deployment="librenms-rrdcached"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS RRDCached is unavailable
+            description: >-
+              The LibreNMS RRDCached Deployment has no available replica.
+
+    - name: librenms.storage
+      rules:
+        - alert: LibreNMSPersistentVolumeWarning
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes{
+                namespace="librenms"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="librenms"
+              }
+            ) > 80
+          for: 30m
+          labels:
+            severity: warning
+            component: librenms
+          annotations:
+            summary: LibreNMS persistent volume is above 80 percent
+            description: >-
+              PVC {{ $labels.persistentvolumeclaim }} has remained above
+              80 percent usage for thirty minutes.
+
+        - alert: LibreNMSPersistentVolumeCritical
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes{
+                namespace="librenms"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="librenms"
+              }
+            ) > 90
+          for: 15m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS persistent volume is above 90 percent
+            description: >-
+              PVC {{ $labels.persistentvolumeclaim }} has remained above
+              90 percent usage for fifteen minutes.
+
+        - alert: LibreNMSPersistentVolumeInodesLow
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_inodes_used{
+                namespace="librenms"
+              }
+              /
+              kubelet_volume_stats_inodes{
+                namespace="librenms"
+              }
+            ) > 90
+          for: 15m
+          labels:
+            severity: warning
+            component: librenms
+          annotations:
+            summary: LibreNMS persistent volume inode usage is high
+            description: >-
+              PVC {{ $labels.persistentvolumeclaim }} has remained above
+              90 percent inode usage for fifteen minutes.
+
+    - name: librenms.runtime
+      rules:
+        - alert: LibreNMSContainerRestarting
+          expr: |
+            sum by (pod, container) (
+              increase(
+                kube_pod_container_status_restarts_total{
+                  namespace="librenms"
+                }[15m]
+              )
+            ) > 2
+          labels:
+            severity: warning
+            component: librenms
+          annotations:
+            summary: LibreNMS container is repeatedly restarting
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.pod }}
+              restarted more than twice during the last fifteen minutes.
+
+        - alert: LibreNMSContainerOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{
+              namespace="librenms",
+              reason="OOMKilled"
+            } == 1
+          for: 5m
+          labels:
+            severity: critical
+            component: librenms
+          annotations:
+            summary: LibreNMS container was OOM-killed
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.pod }}
+              was terminated because it exceeded available memory.
+
+        - alert: LibreNMSPodPending
+          expr: |
+            kube_pod_status_phase{
+              namespace="librenms",
+              phase="Pending"
+            } == 1
+          for: 10m
+          labels:
+            severity: warning
+            component: librenms
+          annotations:
+            summary: LibreNMS pod remains pending
+            description: >-
+              Pod {{ $labels.pod }} has remained Pending for ten minutes.
+
+        - alert: LibreNMSTLSCertificateExpiring
+          expr: |
+            probe_ssl_earliest_cert_expiry{
+              job="librenms-external"
+            }
+            -
+            time()
+            < 1209600
+          for: 1h
+          labels:
+            severity: warning
+            component: librenms
+          annotations:
+            summary: LibreNMS TLS certificate expires within fourteen days
+            description: >-
+              The public TLS certificate for LibreNMS has less than fourteen
+              days remaining.
