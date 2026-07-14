@@ -1,0 +1,6 @@
+apiVersion: v2
+name: wastebin
+description: HACWA Wastebin deployment
+type: application
+version: 0.2.0
+appVersion: "3.7.0"

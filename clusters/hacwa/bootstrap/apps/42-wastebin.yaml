@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wastebin
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "42"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/wastebin
+
+    helm:
+      releaseName: wastebin
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wastebin
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

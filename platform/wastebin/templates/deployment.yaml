@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wastebin
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: wastebin
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  # Wastebin uses a single SQLite database on an RWO volume.
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wastebin
+      app.kubernetes.io/instance: {{ .Release.Name }}
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wastebin
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: wastebin
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+
+          env:
+            - name: WASTEBIN_ADDRESS_PORT
+              value: "0.0.0.0:{{ .Values.service.port }}"
+
+            - name: WASTEBIN_BASE_URL
+              value: {{ .Values.wastebin.baseUrl | quote }}
+
+            - name: WASTEBIN_DATABASE_PATH
+              value: {{ .Values.wastebin.databasePath | quote }}
+
+            - name: WASTEBIN_TITLE
+              value: {{ .Values.wastebin.title | quote }}
+
+            - name: WASTEBIN_MAX_BODY_SIZE
+              value: {{ .Values.wastebin.maxBodySize | quote }}
+
+            - name: WASTEBIN_HTTP_TIMEOUT
+              value: {{ .Values.wastebin.httpTimeout | quote }}
+
+            - name: WASTEBIN_CACHE_SIZE
+              value: {{ .Values.wastebin.cacheSize | quote }}
+
+            - name: WASTEBIN_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wastebin-runtime-secrets
+                  key: signing-key
+
+            - name: WASTEBIN_PASSWORD_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: wastebin-runtime-secrets
+                  key: password-salt
+
+            - name: RUST_LOG
+              value: {{ .Values.wastebin.logLevel | quote }}
+
+            - name: TMPDIR
+              value: /tmp
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          resources:
+{{ toYaml .Values.resources | nindent 12 }}
+
+          volumeMounts:
+            - name: data
+              mountPath: /data
+
+            - name: temporary
+              mountPath: /tmp
+
+      volumes:
+        - name: data
+{{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: wastebin-data
+{{- else }}
+          emptyDir: {}
+{{- end }}
+
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi
