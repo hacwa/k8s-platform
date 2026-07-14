@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rook-ceph-snapshot-class
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "23"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/rook-ceph-snapshot-class
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rook-ceph
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
