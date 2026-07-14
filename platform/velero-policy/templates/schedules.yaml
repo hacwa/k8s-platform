@@ -1,0 +1,57 @@
+{{- $timezone := required "policy.timezone is required" .Values.policy.timezone }}
+
+{{- range $name, $schedule := .Values.policy.schedules }}
+{{- if $schedule.enabled }}
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: velero-policy
+    app.kubernetes.io/part-of: velero
+    hacwa.co.uk/backup-policy: {{ $name | quote }}
+spec:
+  schedule: {{ printf "CRON_TZ=%s %s" $timezone (required (printf "cron is required for schedule %s" $name) $schedule.cron) | quote }}
+  paused: {{ $schedule.paused }}
+  skipImmediately: {{ $schedule.skipImmediately }}
+  useOwnerReferencesInBackup: false
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: velero
+        hacwa.co.uk/backup-policy: {{ $name | quote }}
+
+{{- with $schedule.includedNamespaces }}
+    includedNamespaces:
+{{ toYaml . | nindent 6 }}
+{{- end }}
+
+{{- with $schedule.excludedNamespaces }}
+    excludedNamespaces:
+{{ toYaml . | nindent 6 }}
+{{- end }}
+
+    includeClusterResources: {{ $schedule.includeClusterResources }}
+
+{{- with $schedule.excludedResources }}
+    excludedResources:
+{{ toYaml . | nindent 6 }}
+{{- end }}
+
+    storageLocation: {{ $schedule.storageLocation | quote }}
+
+    snapshotVolumes: {{ $schedule.snapshotVolumes }}
+    snapshotMoveData: {{ $schedule.snapshotMoveData }}
+
+    csiSnapshotTimeout: {{ $schedule.csiSnapshotTimeout | quote }}
+    itemOperationTimeout: {{ $schedule.itemOperationTimeout | quote }}
+
+    ttl: {{ $schedule.retention | quote }}
+
+    uploaderConfig:
+      parallelFilesUpload: {{ $schedule.uploader.parallelFilesUpload }}
+{{- end }}
+{{- end }}

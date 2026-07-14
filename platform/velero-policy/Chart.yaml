@@ -1,0 +1,6 @@
+apiVersion: v2
+name: velero-policy
+description: HACWA GitOps-managed Velero backup policy
+type: application
+version: 0.1.0
+appVersion: "1.18.1"

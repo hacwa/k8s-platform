@@ -1,0 +1,48 @@
+policy:
+  timezone: Europe/London
+
+  schedules:
+    daily-everything:
+      enabled: true
+
+      # Preserve the schedule without allowing backups to run.
+      paused: false
+
+      # Prevent an immediate catch-up backup when the Schedule is first
+      # created or subsequently unpaused.
+      skipImmediately: true
+
+      # Standard five-field cron expression.
+      # The chart adds CRON_TZ=Europe/London.
+      cron: "0 11 * * *"
+
+      # Thirty days.
+      retention: "720h0m0s"
+
+      storageLocation: default
+
+      # An empty list means every namespace is included.
+      includedNamespaces: []
+
+      # Velero's own operational resources are excluded.
+      excludedNamespaces:
+        - velero
+
+      includeClusterResources: true
+
+      # Ephemeral or controller-generated resources that have no useful
+      # restore value.
+      excludedResources:
+        - events
+        - events.events.k8s.io
+        - leases.coordination.k8s.io
+        - ciliumendpoints.cilium.io
+
+      snapshotVolumes: true
+      snapshotMoveData: true
+
+      csiSnapshotTimeout: "15m"
+      itemOperationTimeout: "8h"
+
+      uploader:
+        parallelFilesUpload: 4
