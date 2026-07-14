@@ -12,7 +12,6 @@ metadata:
     metallb.io/allow-shared-ip: hacwa-external-vip
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.0.20.17
   externalTrafficPolicy: Cluster
   sessionAffinity: ClientIP
   selector:
@@ -455,7 +454,6 @@ metadata:
     metallb.io/allow-shared-ip: hacwa-external-vip
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.0.20.17
   externalTrafficPolicy: Cluster
   selector:
     app.kubernetes.io/name: livekit
