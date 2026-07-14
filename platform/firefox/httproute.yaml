@@ -1,0 +1,30 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: firefox
+  namespace: firefox
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
+      namespace: platform-gateway
+      sectionName: https
+
+  hostnames:
+    - firefox.hacwa.co.uk
+
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: firefox-oauth2-proxy
+          port: 4180
+          weight: 1
