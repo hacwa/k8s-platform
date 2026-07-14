@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: synapse-postgresql
+  namespace: matrix
+  labels:
+    app.kubernetes.io/name: matrix
+    app.kubernetes.io/component: postgresql
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: matrix
+    app.kubernetes.io/component: postgresql
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
