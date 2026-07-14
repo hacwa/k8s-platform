@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mautrix-signal
+  namespace: matrix
+  labels:
+    app.kubernetes.io/name: mautrix-signal
+    app.kubernetes.io/part-of: matrix
+spec:
+  selector:
+    app.kubernetes.io/name: mautrix-signal
+    app.kubernetes.io/part-of: matrix
+  ports:
+    - name: http
+      port: 29328
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mautrix-signal
+  namespace: matrix
+  labels:
+    app.kubernetes.io/name: mautrix-signal
+    app.kubernetes.io/part-of: matrix
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mautrix-signal
+      app.kubernetes.io/part-of: matrix
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mautrix-signal
+        app.kubernetes.io/part-of: matrix
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 90
+
+      initContainers:
+        - name: wait-for-postgresql
+          image: postgres:16.4-bookworm
+          imagePullPolicy: IfNotPresent
+          command:
+            - bash
+            - -ec
+            - |
+              until pg_isready                 -h synapse-postgresql                 -U mautrix_signal                 -d mautrix_signal
+              do
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: matrix-postgresql-auth
+                  key: mautrix-signal-password
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+        - name: render-config
+          image: ruby:3.3-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - ruby
+            - /templates/render-mautrix.rb
+            - /templates/config.yaml.template
+            - /templates/registration.yaml.template
+            - /runtime
+            - /secrets
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: runtime
+              mountPath: /runtime
+
+            - name: templates
+              mountPath: /templates
+              readOnly: true
+
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
+
+      containers:
+        - name: mautrix-signal
+          image: dock.mau.dev/mautrix/signal@sha256:c39164c7d0c9c9ad0f3adc11ebac6496670061d8071e37d62aa1fd77a6f6c926
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: UID
+              value: "1337"
+
+            - name: GID
+              value: "1337"
+
+            - name: BRIDGEV2
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 29328
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CHOWN
+                - SETUID
+                - SETGID
+          volumeMounts:
+            - name: runtime
+              mountPath: /data
+
+      volumes:
+        - name: runtime
+          emptyDir: {}
+
+        - name: templates
+          configMap:
+            name: matrix-mautrix-signal-config
+
+        - name: secrets
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: matrix-postgresql-auth
+                  items:
+                    - key: mautrix-signal-password
+                      path: database-password
+
+              - secret:
+                  name: matrix-mautrix-signal-secrets
+                  items:
+                    - key: as-token
+                      path: as-token
+
+                    - key: hs-token
+                      path: hs-token
+
+                    - key: provisioning-shared-secret
+                      path: provisioning-shared-secret
+
+                    - key: public-media-signing-key
+                      path: public-media-signing-key
+
+                    - key: direct-media-server-key
+                      path: direct-media-server-key
+
+                    - key: encryption-pickle-key
+                      path: encryption-pickle-key
