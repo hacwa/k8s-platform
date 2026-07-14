@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - synapse.yaml
+
+configMapGenerator:
+  - name: matrix-synapse-config
+    files:
+      - render.py=tools/render.py
+      - homeserver.yaml.template=config/homeserver.yaml.template
+      - log.config=config/log.config

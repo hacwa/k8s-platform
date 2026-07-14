@@ -1,0 +1,82 @@
+server_name: synapse.hacwa.co.uk
+public_baseurl: https://synapse.hacwa.co.uk/
+web_client_location: https://element.hacwa.co.uk/
+
+pid_file: /data/homeserver.pid
+
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    resources:
+      - names: [client, federation, media]
+        compress: false
+
+federation_ip_range_blacklist: []
+federation_listen_port: 443
+report_stats: false
+
+experimental_features:
+  msc3266_enabled: true
+  msc4222_enabled: true
+
+max_event_delay_duration: 24h
+
+rc_message:
+  per_second: 0.5
+  burst_count: 30
+
+rc_delayed_event_mgmt:
+  per_second: 1
+  burst_count: 20
+
+media_store_path: /data/media_store
+enable_authenticated_media: true
+
+enable_registration: false
+enable_registration_without_verification: false
+
+trusted_key_servers:
+  - server_name: "matrix.org"
+
+turn_uris:
+  - "turn:turn.hacwa.co.uk:3478?transport=udp"
+turn_shared_secret: __JSON_TURN_SHARED_SECRET__
+turn_user_lifetime: 1h
+turn_allow_guests: false
+
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: __JSON_DATABASE_PASSWORD__
+    dbname: synapse
+    host: synapse-postgresql
+    cp_min: 5
+    cp_max: 10
+
+email:
+  app_name: Matrix
+  client_base_url: https://element.hacwa.co.uk/
+  enable_notifs: false
+  notif_from: "Matrix <matrix@hacwa.co.uk>"
+
+room_list_publication_rules: []
+auto_join_rooms: []
+
+signing_key_path: /data/element.hacwa.co.uk.signing.key
+
+form_secret: __JSON_FORM_SECRET__
+macaroon_secret_key: __JSON_MACAROON_SECRET__
+registration_shared_secret: __JSON_REGISTRATION_SECRET__
+
+log_config: /data/log.config
+
+
+
+# Rehearsal safety: this cloned homeserver cannot send externally.
+send_federation: false
+start_pushers: false
+notify_appservices: false
