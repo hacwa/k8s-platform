@@ -1,0 +1,62 @@
+http:
+  public_base: https://mas.hacwa.co.uk/
+  listeners:
+    - name: web
+      binds:
+        - address: "0.0.0.0:8080"
+      resources:
+        - name: discovery
+        - name: human
+        - name: oauth
+        - name: compat
+
+database:
+  uri: __DATABASE_URI__
+
+matrix:
+  kind: synapse
+  homeserver: synapse.hacwa.co.uk
+  endpoint: http://synapse:8008
+  secret: __MATRIX_SHARED_SECRET__
+
+secrets:
+  encryption_file: /data/secrets/encryption.key
+  keys:
+    - kid: "mas-rsa-1"
+      key_file: /data/secrets/mas-signing.key
+
+passwords:
+  enabled: false
+  schemes:
+    - version: 1
+      algorithm: bcrypt
+      unicode_normalization: true
+    - version: 2
+      algorithm: argon2id
+
+upstream_oauth2:
+  providers:
+    - id: 01KKF7VS08JD1KXRM2G7GBPW5C
+      issuer: "https://keycloak.hacwa.co.uk/realms/master"
+      human_name: "Keycloak"
+      synapse_idp_id: oidc-keycloak
+      client_id: "matrix-authentication-service"
+      client_secret: __KEYCLOAK_CLIENT_SECRET__
+      token_endpoint_auth_method: client_secret_basic
+      scope: "openid profile email"
+      claims_imports:
+        subject:
+          template: "{{ user.sub }}"
+
+        localpart:
+          action: force
+          template: "{{ user.preferred_username }}"
+          on_conflict: add
+
+        displayname:
+          action: suggest
+          template: "{{ user.name }}"
+
+        email:
+          action: suggest
+          template: "{{ user.email }}"

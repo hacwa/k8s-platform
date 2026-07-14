@@ -6,6 +6,7 @@ generatorOptions:
 
 resources:
   - synapse.yaml
+  - mas.yaml
 
 configMapGenerator:
   - name: matrix-synapse-config
@@ -13,3 +14,8 @@ configMapGenerator:
       - render.py=tools/render.py
       - homeserver.yaml.template=config/homeserver.yaml.template
       - log.config=config/log.config
+
+  - name: matrix-mas-config
+    files:
+      - render-mas.py=tools/render-mas.py
+      - mas-config.yaml.template=config/mas-config.yaml.template
