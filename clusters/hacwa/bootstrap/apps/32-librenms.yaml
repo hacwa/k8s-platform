@@ -76,28 +76,28 @@ spec:
                   name: librenms-app
                   key: smtp-password
 
-        frontend:
-          replicas: 1
-          extraVolumes:
-            - name: librenms-vendor
-              persistentVolumeClaim:
-                claimName: librenms-vendor
-          extraVolumeMounts:
-            - name: librenms-vendor
-              mountPath: /opt/librenms/vendor
+          frontend:
+            replicas: 1
+            extraVolumes:
+              - name: librenms-vendor
+                persistentVolumeClaim:
+                  claimName: librenms-vendor
+            extraVolumeMounts:
+              - name: librenms-vendor
+                mountPath: /opt/librenms/vendor
 
-        poller:
-          replicas: 1
+          poller:
+            replicas: 1
 
-        rrdcached:
-          persistence:
-            enabled: true
-            journal:
-              storageClassName: rook-ceph-block
-              size: 1Gi
-            rrdcached:
-              storageClassName: rook-ceph-block
-              size: 20Gi
+          rrdcached:
+            persistence:
+              enabled: true
+              journal:
+                storageClassName: rook-ceph-block
+                size: 1Gi
+              rrdcached:
+                storageClassName: rook-ceph-block
+                size: 20Gi
 
         mysql:
           enabled: true
