@@ -18,6 +18,7 @@ spec:
         - clientSelectors:
             - methods:
                 - value: POST
+                  invert: false
 
           limit:
             requests: {{ .Values.rateLimit.postRequestsPerMinute }}
