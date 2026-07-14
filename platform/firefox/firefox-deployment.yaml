@@ -71,7 +71,7 @@ spec:
               value: "-1"
 
             - name: WEB_NOTIFICATION
-              value: "1"
+              value: "0"
 
             - name: WEB_TERMINAL
               value: "0"
