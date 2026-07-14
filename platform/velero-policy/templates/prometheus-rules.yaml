@@ -1,0 +1,307 @@
+{{- if .Values.alerts.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: velero-backup-alerts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: velero-policy
+    app.kubernetes.io/part-of: velero
+{{- with .Values.alerts.prometheusRuleLabels }}
+{{ toYaml . | nindent 4 }}
+{{- end }}
+spec:
+  groups:
+    - name: velero.availability
+      rules:
+        - alert: VeleroServerTargetDown
+          expr: |
+            up{
+              namespace="{{ .Release.Namespace }}",
+              job="velero"
+            } == 0
+          for: {{ .Values.alerts.targetDownFor | quote }}
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero server metrics target is down
+            description: >-
+              Prometheus has been unable to scrape the Velero server for
+              {{ .Values.alerts.targetDownFor }}.
+
+        - alert: VeleroNodeAgentTargetDown
+          expr: |
+            up{
+              namespace="{{ .Release.Namespace }}",
+              job="velero/node-agent"
+            } == 0
+          for: {{ .Values.alerts.targetDownFor | quote }}
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero node-agent metrics target is down
+            description: >-
+              The Velero node-agent on node {{ "{{ $labels.node }}" }} or pod
+              {{ "{{ $labels.pod }}" }} has been unavailable for
+              {{ .Values.alerts.targetDownFor }}.
+
+        - alert: VeleroBackupStorageUnavailable
+          expr: |
+            velero_backup_location_status_gauge{
+              namespace="{{ .Release.Namespace }}",
+              backup_location_name="{{ .Values.alerts.backupStorageLocation }}"
+            } == 0
+          for: {{ .Values.alerts.storageUnavailableFor | quote }}
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero backup storage is unavailable
+            description: >-
+              BackupStorageLocation
+              {{ .Values.alerts.backupStorageLocation }} has been unavailable
+              for {{ .Values.alerts.storageUnavailableFor }}.
+
+    - name: velero.backups
+      rules:
+        - alert: VeleroScheduledBackupMissingOrStale
+          expr: |
+            absent(
+              velero_backup_last_successful_timestamp{
+                namespace="{{ .Release.Namespace }}",
+                schedule="{{ .Values.alerts.scheduleName }}"
+              }
+            )
+            or
+            (
+              time()
+              -
+              velero_backup_last_successful_timestamp{
+                namespace="{{ .Release.Namespace }}",
+                schedule="{{ .Values.alerts.scheduleName }}"
+              }
+              >
+              {{ mul .Values.alerts.staleAfterHours 3600 }}
+            )
+          for: {{ .Values.alerts.staleFor | quote }}
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: No recent successful Velero backup
+            description: >-
+              Schedule {{ .Values.alerts.scheduleName }} has no successful
+              backup newer than {{ .Values.alerts.staleAfterHours }} hours.
+
+        - alert: VeleroScheduledBackupFailed
+          expr: |
+            sum(
+              increase(
+                velero_backup_failure_total{
+                  namespace="{{ .Release.Namespace }}",
+                  schedule="{{ .Values.alerts.scheduleName }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero scheduled backup failed
+            description: >-
+              Schedule {{ .Values.alerts.scheduleName }} recorded a failed
+              backup during the last {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroScheduledBackupPartiallyFailed
+          expr: |
+            sum(
+              increase(
+                velero_backup_partial_failure_total{
+                  namespace="{{ .Release.Namespace }}",
+                  schedule="{{ .Values.alerts.scheduleName }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero scheduled backup partially failed
+            description: >-
+              Schedule {{ .Values.alerts.scheduleName }} recorded a partially
+              failed backup during the last
+              {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroScheduledBackupValidationFailed
+          expr: |
+            sum(
+              increase(
+                velero_backup_validation_failure_total{
+                  namespace="{{ .Release.Namespace }}",
+                  schedule="{{ .Values.alerts.scheduleName }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero backup validation failed
+            description: >-
+              Schedule {{ .Values.alerts.scheduleName }} recorded a validation
+              failure during the last {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroScheduledBackupWarning
+          expr: |
+            sum(
+              increase(
+                velero_backup_warning_total{
+                  namespace="{{ .Release.Namespace }}",
+                  schedule="{{ .Values.alerts.scheduleName }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: warning
+            component: velero
+          annotations:
+            summary: Velero scheduled backup completed with warnings
+            description: >-
+              Schedule {{ .Values.alerts.scheduleName }} recorded one or more
+              backup warnings during the last
+              {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroCSISnapshotFailed
+          expr: |
+            sum(
+              increase(
+                velero_csi_snapshot_failure_total{
+                  namespace="{{ .Release.Namespace }}",
+                  schedule="{{ .Values.alerts.scheduleName }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero CSI snapshot failed
+            description: >-
+              A CSI snapshot for schedule
+              {{ .Values.alerts.scheduleName }} failed during the last
+              {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroDataUploadFailed
+          expr: |
+            sum(
+              increase(
+                podVolume_data_upload_failure_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero volume data upload failed
+            description: >-
+              A Velero node-agent failed to upload snapshot data to MinIO
+              during the last {{ .Values.alerts.counterWindow }}.
+
+    - name: velero.restores
+      rules:
+        - alert: VeleroDataDownloadFailed
+          expr: |
+            sum(
+              increase(
+                podVolume_data_download_failure_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero volume data download failed
+            description: >-
+              A Velero node-agent failed to download restore data during the
+              last {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroRestoreFailed
+          expr: |
+            sum(
+              increase(
+                velero_restore_failed_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero restore failed
+            description: >-
+              A Velero restore failed during the last
+              {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroRestorePartiallyFailed
+          expr: |
+            sum(
+              increase(
+                velero_restore_partial_failure_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero restore partially failed
+            description: >-
+              A Velero restore partially failed during the last
+              {{ .Values.alerts.counterWindow }}.
+
+        - alert: VeleroRestoreValidationFailed
+          expr: |
+            sum(
+              increase(
+                velero_restore_validation_failed_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero restore validation failed
+            description: >-
+              A Velero restore failed validation during the last
+              {{ .Values.alerts.counterWindow }}.
+
+    - name: velero.repositories
+      rules:
+        - alert: VeleroRepositoryMaintenanceFailed
+          expr: |
+            sum(
+              increase(
+                velero_repo_maintenance_failure_total{
+                  namespace="{{ .Release.Namespace }}"
+                }[{{ .Values.alerts.counterWindow }}]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: velero
+          annotations:
+            summary: Velero repository maintenance failed
+            description: >-
+              Kopia repository maintenance failed during the last
+              {{ .Values.alerts.counterWindow }}.
+{{- end }}

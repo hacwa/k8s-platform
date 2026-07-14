@@ -9,9 +9,8 @@ policy:
       paused: false
 
       # This is a one-shot Velero control field.
-      # Set it to true only for a deliberate one-time skip when creating or
-      # unpausing the schedule. Velero automatically resets it to false after
-      # consuming it, so false is the normal GitOps steady state.
+      # Velero resets it to false after consuming it, so false is the normal
+      # GitOps steady state.
       skipImmediately: false
 
       # Standard five-field cron expression.
@@ -48,3 +47,24 @@ policy:
 
       uploader:
         parallelFilesUpload: 4
+
+alerts:
+  enabled: true
+
+  # Must match the PrometheusRule selector used by kube-prometheus-stack.
+  prometheusRuleLabels:
+    release: kube-prometheus-stack
+
+  scheduleName: daily-everything
+  backupStorageLocation: default
+
+  # The backup runs every 24 hours. Allow three additional hours before
+  # declaring that no recent successful backup exists.
+  staleAfterHours: 27
+
+  targetDownFor: "5m"
+  storageUnavailableFor: "5m"
+  staleFor: "15m"
+
+  # Counter-based failure alerts look for new failures during this window.
+  counterWindow: "1h"

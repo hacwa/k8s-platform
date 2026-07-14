@@ -1,12 +1,13 @@
 # Velero backup policy
 
-This local Helm chart manages recurring Velero backup schedules.
+This local Helm chart manages recurring Velero backup schedules and their
+Prometheus alert rules.
 
-## Routine configuration
+## Routine backup configuration
 
 Edit `values.yaml` for normal policy changes.
 
-## Change the daily time
+### Change the daily time
 
 Change:
 
@@ -16,7 +17,7 @@ The chart prepends:
 
     CRON_TZ=Europe/London
 
-## Change retention
+### Change retention
 
 Change:
 
@@ -28,13 +29,13 @@ Examples:
 - 30 days: `720h0m0s`
 - 90 days: `2160h0m0s`
 
-## Pause backups
+### Pause backups
 
 Set:
 
     paused: true
 
-## Change upload concurrency
+### Change upload concurrency
 
 Change:
 
@@ -44,19 +45,36 @@ Change:
 Higher values can shorten backups but increase Ceph, CPU, network and MinIO
 load.
 
-## Exclude a namespace
+### Exclude a namespace
 
 Add it under:
 
     excludedNamespaces:
       - velero
 
-## Add another schedule
+## Alert configuration
 
-Copy the complete `daily-everything` block beneath `schedules`, give it a
-unique name, and change its cron, retention or scope.
+Alerts are configured under `alerts` in `values.yaml`.
 
-## Default scope
+The default alert policy detects:
+
+- Velero server scrape failure;
+- node-agent scrape failure;
+- unavailable MinIO BackupStorageLocation;
+- no successful daily backup within 27 hours;
+- failed, partially failed or invalid backups;
+- backup warnings;
+- CSI snapshot failures;
+- failed data uploads;
+- failed data downloads;
+- failed or partially failed restores;
+- restore validation failures;
+- Kopia repository-maintenance failures.
+
+The stale-backup threshold is intentionally longer than 24 hours to allow the
+scheduled backup time and normal backup duration before alerting.
+
+## Backup scope
 
 The default policy backs up:
 
