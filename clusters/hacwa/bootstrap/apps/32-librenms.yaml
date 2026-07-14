@@ -28,16 +28,75 @@ spec:
           existingSecret: librenms-app
           timezone: Europe/London
 
+          configuration: |
+            require_once '/data/keycloak-provider/Provider.php';
+            require_once '/data/keycloak-provider/KeycloakExtendSocialite.php';
+
+            $config['distributed_poller_group'] = '0';
+            $config['distributed_poller'] = true;
+            $config['base_url'] = 'https://librenms.hacwa.co.uk';
+
+            $config['auth']['socialite']['configs']['keycloak']['listener'] = '\SocialiteProviders\Keycloak\KeycloakExtendSocialite';
+            $config['auth']['socialite']['configs']['keycloak']['client_id'] = 'librenms';
+            $config['auth']['socialite']['configs']['keycloak']['client_secret'] = getenv('KEYCLOAK_CLIENT_SECRET');
+            $config['auth']['socialite']['configs']['keycloak']['base_url'] = 'https://keycloak.hacwa.co.uk';
+            $config['auth']['socialite']['configs']['keycloak']['realms'] = 'master';
+            $config['auth']['socialite']['configs']['keycloak']['redirect'] = 'https://librenms.hacwa.co.uk/auth/keycloak/callback';
+
+            $config['auth']['socialite']['register'] = true;
+            $config['auth']['socialite']['redirect'] = false;
+            $config['auth']['socialite']['default_role'] = 'admin';
+
+            $config['email_backend'] = 'smtp';
+            $config['email_from'] = 'librenms-noreply@hacwa.co.uk';
+            $config['email_smtp_host'] = 'smtp.fastmail.com';
+            $config['email_smtp_port'] = 587;
+            $config['email_smtp_secure'] = 'tls';
+            $config['email_smtp_auth'] = true;
+            $config['email_smtp_username'] = getenv('SMTP_USERNAME');
+            $config['email_smtp_password'] = getenv('SMTP_PASSWORD');
+            $config['email_smtp_timeout'] = 10;
+
           extraEnvs:
             - name: APP_URL
               value: https://librenms.hacwa.co.uk
+
             - name: APP_TRUSTED_PROXIES
               value: 172.30.0.0/16
+
             - name: SESSION_SECURE_COOKIE
               value: "true"
 
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-app
+                  key: keycloak-client-secret
+
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-app
+                  key: smtp-username
+
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: librenms-app
+                  key: smtp-password
+
           frontend:
             replicas: 1
+
+            extraVolumes:
+              - name: keycloak-provider
+                configMap:
+                  name: librenms-keycloak-provider
+
+            extraVolumeMounts:
+              - name: keycloak-provider
+                mountPath: /data/keycloak-provider
+                readOnly: true
 
           poller:
             replicas: 1

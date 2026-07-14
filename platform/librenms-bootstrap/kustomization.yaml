@@ -3,3 +3,13 @@ kind: Kustomization
 
 resources:
   - external-secrets.yaml
+
+configMapGenerator:
+  - name: librenms-keycloak-provider
+    namespace: librenms
+    files:
+      - Provider.php=keycloak-provider/Provider.php
+      - KeycloakExtendSocialite.php=keycloak-provider/KeycloakExtendSocialite.php
+
+generatorOptions:
+  disableNameSuffixHash: true
