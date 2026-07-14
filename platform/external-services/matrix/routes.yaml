@@ -20,8 +20,9 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: matrix-element
-          port: 8080
+          name: element
+          namespace: matrix
+          port: 80
           weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -46,8 +47,9 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: matrix-mas
-          port: 8081
+          name: mas
+          namespace: matrix
+          port: 8080
           weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -140,8 +142,9 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: matrix-mas
-          port: 8081
+          name: mas
+          namespace: matrix
+          port: 8080
           weight: 1
 
     - matches:
@@ -154,7 +157,8 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: matrix-synapse
+          name: synapse
+          namespace: matrix
           port: 8008
           weight: 1
 ---
@@ -187,7 +191,8 @@ spec:
         - group: ""
           kind: Service
           name: matrix-rtc-auth
-          port: 8082
+          namespace: matrix
+          port: 8080
           weight: 1
 
     - matches:
@@ -205,6 +210,7 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: matrix-livekit-api
+          name: livekit
+          namespace: matrix
           port: 7880
           weight: 1

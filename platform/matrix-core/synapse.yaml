@@ -115,6 +115,88 @@ spec:
               mountPath: /secrets
               readOnly: true
 
+        - name: render-bridge-registration
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              python - <<'PY'
+              import json
+              import pathlib
+              import re
+
+              template = pathlib.Path(
+                  "/bridge-template/registration.yaml.template"
+              ).read_text()
+
+              as_token = pathlib.Path(
+                  "/bridge-secrets/as-token"
+              ).read_text().rstrip("\n")
+
+              hs_token = pathlib.Path(
+                  "/bridge-secrets/hs-token"
+              ).read_text().rstrip("\n")
+
+              replacements = [
+                  (
+                      r"(?m)^as_token:\s*.*$",
+                      "as_token: " + json.dumps(as_token),
+                      "as_token",
+                  ),
+                  (
+                      r"(?m)^hs_token:\s*.*$",
+                      "hs_token: " + json.dumps(hs_token),
+                      "hs_token",
+                  ),
+                  (
+                      r"(?m)^url:\s*.*$",
+                      'url: "http://mautrix-signal:29328"',
+                      "url",
+                  ),
+              ]
+
+              for pattern, replacement, label in replacements:
+                  template, count = re.subn(
+                      pattern,
+                      replacement,
+                      template,
+                      count=1,
+                  )
+
+                  if count != 1:
+                      raise SystemExit(
+                          f"{label}: expected one field, found {count}"
+                      )
+
+              destination = pathlib.Path(
+                  "/runtime/mautrix-signal-registration.yaml"
+              )
+
+              destination.write_text(template)
+              destination.chmod(0o600)
+              PY
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 991
+            runAsGroup: 991
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: runtime
+              mountPath: /runtime
+
+            - name: bridge-registration-template
+              mountPath: /bridge-template
+              readOnly: true
+
+            - name: bridge-registration-secrets
+              mountPath: /bridge-secrets
+              readOnly: true
+
       containers:
         - name: synapse
           image: matrixdotorg/synapse:v1.148.0
@@ -201,6 +283,25 @@ spec:
                       path: turn-shared-secret
                     - key: mas-shared-secret
                       path: mas-shared-secret
+
+        - name: bridge-registration-template
+          configMap:
+            name: matrix-mautrix-signal-config
+            items:
+              - key: registration.yaml.template
+                path: registration.yaml.template
+
+        - name: bridge-registration-secrets
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: matrix-mautrix-signal-secrets
+                  items:
+                    - key: as-token
+                      path: as-token
+                    - key: hs-token
+                      path: hs-token
 
         - name: media
           persistentVolumeClaim:

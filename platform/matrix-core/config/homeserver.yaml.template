@@ -81,7 +81,10 @@ matrix_authentication_service:
   endpoint: http://mas:8080/
   secret: __JSON_MAS_SHARED_SECRET__
 
-# Rehearsal safety: this cloned homeserver cannot send externally.
-send_federation: false
-start_pushers: false
-notify_appservices: false
+# Production Matrix configuration.
+app_service_config_files:
+  - /data/mautrix-signal-registration.yaml
+
+send_federation: true
+start_pushers: true
+notify_appservices: true
