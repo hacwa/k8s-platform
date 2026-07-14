@@ -9,3 +9,6 @@ resources:
   - oauth2-proxy-deployment.yaml
   - oauth2-proxy-service.yaml
   - httproute.yaml
+  - servicemonitor.yaml
+  - probe.yaml
+  - dashboard.yaml

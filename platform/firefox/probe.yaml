@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: firefox-external
+  namespace: firefox
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: firefox
+spec:
+  jobName: firefox-external
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_public
+
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+    scheme: http
+
+  targets:
+    staticConfig:
+      static:
+        - https://firefox.hacwa.co.uk/ping
+
+      labels:
+        application: firefox
+        endpoint: external
