@@ -11,17 +11,9 @@ spec:
       rules:
         - alert: ArgoWorkflowsControllerUnavailable
           expr: |
-            absent(
-              up{
-                monitor_component="argo-workflows-controller"
-              }
-            )
+            absent(up{namespace="argo-workflows", job="argo-workflows-workflow-controller"})
             or
-            max(
-              up{
-                monitor_component="argo-workflows-controller"
-              }
-            ) == 0
+            max(up{namespace="argo-workflows", job="argo-workflows-workflow-controller"}) == 0
           for: 5m
           labels:
             severity: critical
