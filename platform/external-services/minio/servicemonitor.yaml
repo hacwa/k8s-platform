@@ -9,6 +9,10 @@ metadata:
     release: kube-prometheus-stack
     app.kubernetes.io/name: minio
 spec:
+  # MinIO is represented by a manually managed EndpointSlice rather than
+  # a legacy v1 Endpoints object.
+  serviceDiscoveryRole: EndpointSlice
+
   selector:
     matchLabels:
       app.kubernetes.io/name: minio
