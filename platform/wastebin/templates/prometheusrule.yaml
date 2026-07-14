@@ -1,0 +1,196 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: wastebin
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: wastebin
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  groups:
+    - name: wastebin.availability
+      rules:
+        - alert: WastebinExternalEndpointDown
+          expr: |
+            probe_success{
+              job="wastebin-external"
+            } == 0
+          for: 3m
+          labels:
+            severity: critical
+            component: wastebin
+          annotations:
+            summary: Wastebin external endpoint is unavailable
+            description: >-
+              The public HTTPS probe for Wastebin has failed for more than
+              three minutes.
+
+        - alert: WastebinDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="wastebin",
+              deployment="wastebin"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: wastebin
+          annotations:
+            summary: Wastebin is unavailable
+            description: >-
+              The Wastebin Deployment has no available replica.
+
+        - alert: WastebinPodNotReady
+          expr: |
+            max(
+              kube_pod_status_ready{
+                namespace="wastebin",
+                condition="true",
+                pod=~"wastebin-.*"
+              }
+            ) < 1
+          for: 5m
+          labels:
+            severity: critical
+            component: wastebin
+          annotations:
+            summary: Wastebin pod is not ready
+            description: >-
+              The Wastebin application pod has remained unready for five
+              minutes.
+
+        - alert: WastebinTLSCertificateExpiring
+          expr: |
+            probe_ssl_earliest_cert_expiry{
+              job="wastebin-external"
+            }
+            -
+            time()
+            < 1209600
+          for: 1h
+          labels:
+            severity: warning
+            component: wastebin
+          annotations:
+            summary: Wastebin TLS certificate expires within fourteen days
+            description: >-
+              The public TLS certificate for Wastebin has less than fourteen
+              days remaining.
+
+    - name: wastebin.storage
+      rules:
+        - alert: WastebinPersistentVolumeWarning
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+            ) > 80
+          for: 30m
+          labels:
+            severity: warning
+            component: wastebin
+          annotations:
+            summary: Wastebin storage is above 80 percent
+            description: >-
+              The Wastebin SQLite data volume has remained above 80 percent
+              usage for thirty minutes.
+
+        - alert: WastebinPersistentVolumeCritical
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_used_bytes{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+            ) > 90
+          for: 15m
+          labels:
+            severity: critical
+            component: wastebin
+          annotations:
+            summary: Wastebin storage is above 90 percent
+            description: >-
+              The Wastebin SQLite data volume has remained above 90 percent
+              usage for fifteen minutes.
+
+        - alert: WastebinPersistentVolumeInodesLow
+          expr: |
+            (
+              100
+              *
+              kubelet_volume_stats_inodes_used{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+              /
+              kubelet_volume_stats_inodes{
+                namespace="wastebin",
+                persistentvolumeclaim="wastebin-data"
+              }
+            ) > 90
+          for: 15m
+          labels:
+            severity: warning
+            component: wastebin
+          annotations:
+            summary: Wastebin inode usage is high
+            description: >-
+              The Wastebin data volume has remained above 90 percent inode
+              usage for fifteen minutes.
+
+    - name: wastebin.runtime
+      rules:
+        - alert: WastebinContainerRestarting
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="wastebin",
+                container="wastebin"
+              }[15m]
+            ) > 2
+          labels:
+            severity: warning
+            component: wastebin
+          annotations:
+            summary: Wastebin is repeatedly restarting
+            description: >-
+              The Wastebin container restarted more than twice during the
+              last fifteen minutes.
+
+        - alert: WastebinContainerOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{
+              namespace="wastebin",
+              container="wastebin",
+              reason="OOMKilled"
+            } == 1
+          for: 5m
+          labels:
+            severity: critical
+            component: wastebin
+          annotations:
+            summary: Wastebin was OOM-killed
+            description: >-
+              The Wastebin container was terminated because it exceeded
+              available memory.
+{{- end }}

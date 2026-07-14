@@ -1,0 +1,16 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wastebin-grafana-dashboard
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: wastebin
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  wastebin.json: |
+{{ .Files.Get "dashboards/wastebin.json" | nindent 4 }}
+{{- end }}

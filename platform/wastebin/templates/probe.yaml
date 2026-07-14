@@ -1,0 +1,32 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: wastebin-external
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: wastebin
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  jobName: wastebin-external
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_public
+
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+    scheme: http
+
+  targets:
+    staticConfig:
+      static:
+        - {{ printf "https://%s/" .Values.route.hostname | quote }}
+
+      labels:
+        application: wastebin
+        endpoint: external
+{{- end }}
