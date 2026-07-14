@@ -35,6 +35,8 @@ spec:
           rbd:
             enabled: true
             name: rook-ceph.rbd.csi.ceph.com
+            snapshotPolicy: volumeSnapshot
+
             nodePlugin:
               tolerations:
                 - key: nvidia.com/gpu
