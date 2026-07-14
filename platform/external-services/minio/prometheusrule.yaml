@@ -1,0 +1,205 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: minio
+  namespace: external-services
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: minio
+spec:
+  groups:
+    - name: minio.availability
+      rules:
+        - alert: MinIOMetricsTargetMissing
+          expr: |
+            absent(
+              up{
+                namespace="external-services",
+                service="minio-api"
+              }
+            )
+          for: 5m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO metrics target is missing
+            description: >-
+              Prometheus has no active MinIO metrics series for minio-api.
+
+        - alert: MinIOMetricsTargetDown
+          expr: |
+            up{
+              namespace="external-services",
+              service="minio-api"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO metrics target is down
+            description: >-
+              Prometheus has been unable to scrape MinIO for five minutes.
+
+        - alert: MinIOInternalEndpointDown
+          expr: |
+            probe_success{
+              job="minio-internal"
+            } == 0
+          for: 3m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO endpoint is unavailable
+            description: >-
+              The internal HTTPS probe for {{ $labels.instance }} has failed
+              for more than three minutes.
+
+    - name: minio.storage
+      rules:
+        - alert: MinIONodeOffline
+          expr: |
+            minio_cluster_health_nodes_offline_count > 0
+          for: 2m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO reports an offline node
+            description: >-
+              MinIO reports {{ $value }} offline node or nodes.
+
+        - alert: MinIODriveOffline
+          expr: |
+            minio_cluster_health_drives_offline_count > 0
+          for: 2m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO reports an offline drive
+            description: >-
+              MinIO reports {{ $value }} offline drive or drives.
+
+        - alert: MinIOUsableCapacityWarning
+          expr: |
+            (
+              100
+              *
+              (
+                minio_cluster_health_capacity_usable_total_bytes
+                -
+                minio_cluster_health_capacity_usable_free_bytes
+              )
+              /
+              minio_cluster_health_capacity_usable_total_bytes
+            ) > 80
+          for: 30m
+          labels:
+            severity: warning
+            component: minio
+          annotations:
+            summary: MinIO usable storage is above 80 percent
+            description: >-
+              MinIO usable storage has remained above 80 percent for
+              thirty minutes.
+
+        - alert: MinIOUsableCapacityCritical
+          expr: |
+            (
+              100
+              *
+              (
+                minio_cluster_health_capacity_usable_total_bytes
+                -
+                minio_cluster_health_capacity_usable_free_bytes
+              )
+              /
+              minio_cluster_health_capacity_usable_total_bytes
+            ) > 90
+          for: 15m
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO usable storage is above 90 percent
+            description: >-
+              MinIO usable storage has remained above 90 percent for
+              fifteen minutes.
+
+        - alert: MinIODriveErrors
+          expr: |
+            sum(
+              increase(
+                minio_system_drive_io_errors_total[15m]
+              )
+            )
+            +
+            sum(
+              increase(
+                minio_system_drive_timeout_errors_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO drive errors detected
+            description: >-
+              MinIO reported one or more drive I/O or timeout errors during
+              the last fifteen minutes.
+
+    - name: minio.api
+      rules:
+        - alert: MinIOAPI5xxErrors
+          expr: |
+            sum(
+              increase(
+                minio_api_requests_5xx_errors_total[15m]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO returned server errors
+            description: >-
+              MinIO returned one or more HTTP 5xx API errors during the
+              last fifteen minutes.
+
+        - alert: MinIOAuthenticationRejectionsHigh
+          expr: |
+            sum(
+              rate(
+                minio_api_requests_rejected_auth_total[5m]
+              )
+            ) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: minio
+          annotations:
+            summary: MinIO authentication rejections are elevated
+            description: >-
+              MinIO authentication rejections have exceeded 0.1 requests
+              per second for ten minutes.
+
+        - alert: MinIOHealingErrors
+          expr: |
+            sum(
+              increase(
+                minio_heal_objects_errors_total[30m]
+              )
+            ) > 0
+          labels:
+            severity: critical
+            component: minio
+          annotations:
+            summary: MinIO healing errors detected
+            description: >-
+              MinIO reported one or more object healing errors during the
+              last thirty minutes.

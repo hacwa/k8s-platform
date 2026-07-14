@@ -4,3 +4,18 @@ kind: Kustomization
 resources:
   - backends.yaml
   - routes.yaml
+  - external-secret.yaml
+  - servicemonitor.yaml
+  - probe.yaml
+  - prometheusrule.yaml
+
+configMapGenerator:
+  - name: minio-grafana-dashboard
+    namespace: monitoring
+    files:
+      - minio.json=dashboard.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"

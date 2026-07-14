@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: minio-internal
+  namespace: external-services
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: minio
+spec:
+  jobName: minio-internal
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_internal
+
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+    scheme: http
+
+  targets:
+    staticConfig:
+      static:
+        - https://minio.hacwa.internal/minio/health/live
+        - https://minio-console.hacwa.internal/
+
+      labels:
+        application: minio
+        probe_group: minio-internal

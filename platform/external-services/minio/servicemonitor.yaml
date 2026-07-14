@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: minio
+  namespace: external-services
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: minio
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/component: api
+
+  endpoints:
+    - port: http
+      path: /minio/metrics/v3
+      scheme: http
+      interval: 15s
+      scrapeTimeout: 10s
+
+      authorization:
+        type: Bearer
+        credentials:
+          name: minio-prometheus-scrape
+          key: token
