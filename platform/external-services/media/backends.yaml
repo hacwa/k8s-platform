@@ -100,17 +100,6 @@ spec:
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: Backend
 metadata:
-  name: holiday-external
-  namespace: external-services
-spec:
-  endpoints:
-    - ip:
-        address: 10.0.0.125
-        port: 8087
----
-apiVersion: gateway.envoyproxy.io/v1alpha1
-kind: Backend
-metadata:
   name: immich-external
   namespace: external-services
 spec:
