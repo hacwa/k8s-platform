@@ -64,7 +64,6 @@ spec:
             - --cookie-samesite=lax
             - --cookie-expire=24h
             - --cookie-refresh=1h
-            - --session-cookie-minimal=true
 
             - --silence-ping-logging=true
             - --show-debug-on-error=false
