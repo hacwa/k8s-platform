@@ -7,6 +7,9 @@ generatorOptions:
 resources:
   - synapse.yaml
   - mas.yaml
+  - element.yaml
+  - livekit.yaml
+  - rtc-auth.yaml
 
 configMapGenerator:
   - name: matrix-synapse-config
@@ -19,3 +22,12 @@ configMapGenerator:
     files:
       - render-mas.py=tools/render-mas.py
       - mas-config.yaml.template=config/mas-config.yaml.template
+
+  - name: matrix-element-config
+    files:
+      - config.json=config/element-config.json
+
+  - name: matrix-livekit-config
+    files:
+      - render.py=tools/render.py
+      - livekit.yaml.template=config/livekit.yaml.template

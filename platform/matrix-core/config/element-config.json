@@ -1,0 +1,8 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://synapse.hacwa.co.uk",
+      "server_name": "synapse.hacwa.co.uk"
+    }
+  }
+}

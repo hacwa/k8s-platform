@@ -1,0 +1,14 @@
+port: 7880
+
+keys:
+  __LIVEKIT_KEY__: __LIVEKIT_SECRET__
+
+room:
+  auto_create: false
+
+rtc:
+  port_range_start: 50000
+  port_range_end: 50100
+  tcp_port: 7881
+  use_external_ip: false
+  node_ip: 185.137.223.132
