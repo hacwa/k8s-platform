@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: holiday-countdown
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: holiday-countdown
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: holiday-countdown
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

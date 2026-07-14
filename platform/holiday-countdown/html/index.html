@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Holiday Countdown</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      text-align: center;
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 1200px;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #cbd5e1;
+      margin-bottom: 2rem;
+    }
+
+    .countdown {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .box {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.4rem;
+      min-width: 125px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .box.wide {
+      min-width: 240px;
+    }
+
+    .number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+      word-break: break-word;
+    }
+
+    .wide .number {
+      font-size: 2rem;
+    }
+
+    .label {
+      font-size: 1rem;
+      color: #cbd5e1;
+      margin-top: 0.5rem;
+    }
+
+    .section-title {
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      color: #e2e8f0;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+
+    .date {
+      margin-top: 2rem;
+      color: #cbd5e1;
+    }
+
+    .note {
+      margin-top: 1rem;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Holiday Countdown</h1>
+    <div class="subtitle">Until 3 June 2027</div>
+
+    <div class="section-title">Calendar Countdown</div>
+
+    <div class="countdown">
+      <div class="box">
+        <div class="number" id="years">0</div>
+        <div class="label">Years</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="months">0</div>
+        <div class="label">Months</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="weeks">0</div>
+        <div class="label">Weeks</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="days">0</div>
+        <div class="label">Days</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="hours">0</div>
+        <div class="label">Hours</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="minutes">0</div>
+        <div class="label">Minutes</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="seconds">0</div>
+        <div class="label">Seconds</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="milliseconds">000</div>
+        <div class="label">Milliseconds</div>
+      </div>
+
+      <div class="box">
+        <div class="number" id="microseconds">000000</div>
+        <div class="label">Microseconds</div>
+      </div>
+
+      <div class="box wide">
+        <div class="number" id="nanoseconds">000000000</div>
+        <div class="label">Nanoseconds</div>
+      </div>
+    </div>
+
+    <div class="section-title">Total Remaining</div>
+
+    <div class="countdown">
+      <div class="box wide">
+        <div class="number" id="totalDays">0</div>
+        <div class="label">Total Days</div>
+      </div>
+
+      <div class="box wide">
+        <div class="number" id="totalHours">0</div>
+        <div class="label">Total Hours</div>
+      </div>
+
+      <div class="box wide">
+        <div class="number" id="totalMinutes">0</div>
+        <div class="label">Total Minutes</div>
+      </div>
+
+      <div class="box wide">
+        <div class="number" id="totalSeconds">0</div>
+        <div class="label">Total Seconds</div>
+      </div>
+    </div>
+
+    <div class="date">Target: 3 June 2027 at 00:00 UK time</div>
+    <div class="note">Milliseconds are real browser timing. Microseconds and nanoseconds are visualised from milliseconds.</div>
+  </div>
+
+  <script>
+    const targetDate = new Date("2027-06-03T00:00:00+01:00");
+
+    function getCalendarDifference(startDate, endDate) {
+      let years = endDate.getFullYear() - startDate.getFullYear();
+      let months = endDate.getMonth() - startDate.getMonth();
+      let days = endDate.getDate() - startDate.getDate();
+      let hours = endDate.getHours() - startDate.getHours();
+      let minutes = endDate.getMinutes() - startDate.getMinutes();
+      let seconds = endDate.getSeconds() - startDate.getSeconds();
+
+      if (seconds < 0) {
+        seconds += 60;
+        minutes--;
+      }
+
+      if (minutes < 0) {
+        minutes += 60;
+        hours--;
+      }
+
+      if (hours < 0) {
+        hours += 24;
+        days--;
+      }
+
+      if (days < 0) {
+        const previousMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+        days += previousMonth.getDate();
+        months--;
+      }
+
+      if (months < 0) {
+        months += 12;
+        years--;
+      }
+
+      const weeks = Math.floor(days / 7);
+      days = days % 7;
+
+      return {
+        years,
+        months,
+        weeks,
+        days,
+        hours,
+        minutes,
+        seconds
+      };
+    }
+
+    function updateCountdown() {
+      const now = new Date();
+      const difference = targetDate.getTime() - now.getTime();
+
+      if (difference <= 0) {
+        document.getElementById("years").textContent = "0";
+        document.getElementById("months").textContent = "0";
+        document.getElementById("weeks").textContent = "0";
+        document.getElementById("days").textContent = "0";
+        document.getElementById("hours").textContent = "0";
+        document.getElementById("minutes").textContent = "0";
+        document.getElementById("seconds").textContent = "0";
+        document.getElementById("milliseconds").textContent = "000";
+        document.getElementById("microseconds").textContent = "000000";
+        document.getElementById("nanoseconds").textContent = "000000000";
+        document.getElementById("totalDays").textContent = "0";
+        document.getElementById("totalHours").textContent = "0";
+        document.getElementById("totalMinutes").textContent = "0";
+        document.getElementById("totalSeconds").textContent = "0";
+        return;
+      }
+
+      const calendar = getCalendarDifference(now, targetDate);
+
+      const totalDays = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const totalHours = Math.floor(difference / (1000 * 60 * 60));
+      const totalMinutes = Math.floor(difference / (1000 * 60));
+      const totalSeconds = Math.floor(difference / 1000);
+
+      const milliseconds = difference % 1000;
+      const microseconds = milliseconds * 1000;
+      const nanoseconds = milliseconds * 1000000;
+
+      document.getElementById("years").textContent = calendar.years;
+      document.getElementById("months").textContent = calendar.months;
+      document.getElementById("weeks").textContent = calendar.weeks;
+      document.getElementById("days").textContent = calendar.days;
+      document.getElementById("hours").textContent = calendar.hours;
+      document.getElementById("minutes").textContent = calendar.minutes;
+      document.getElementById("seconds").textContent = calendar.seconds;
+
+      document.getElementById("milliseconds").textContent = String(milliseconds).padStart(3, "0");
+      document.getElementById("microseconds").textContent = String(microseconds).padStart(6, "0");
+      document.getElementById("nanoseconds").textContent = String(nanoseconds).padStart(9, "0");
+
+      document.getElementById("totalDays").textContent = totalDays.toLocaleString();
+      document.getElementById("totalHours").textContent = totalHours.toLocaleString();
+      document.getElementById("totalMinutes").textContent = totalMinutes.toLocaleString();
+      document.getElementById("totalSeconds").textContent = totalSeconds.toLocaleString();
+
+      requestAnimationFrame(updateCountdown);
+    }
+
+    updateCountdown();
+  </script>
+</body>
+</html>
