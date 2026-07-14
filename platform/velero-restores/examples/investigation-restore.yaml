@@ -1,0 +1,38 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  # Use a unique name for every restore.
+  name: librenms-investigation-CHANGE-ME
+  namespace: velero
+spec:
+  # Always select an exact backup for investigation work.
+  backupName: daily-everything-CHANGE-ME
+
+  includedNamespaces:
+    - librenms
+
+  # Restore production data into a separate namespace.
+  namespaceMapping:
+    librenms: librenms-investigation
+
+  # Do not restore unrelated cluster-scoped configuration during an
+  # investigation restore.
+  includeClusterResources: false
+
+  excludedResources:
+    - events
+    - events.events.k8s.io
+    - leases.coordination.k8s.io
+    - ciliumendpoints.cilium.io
+
+  restorePVs: true
+  preserveNodePorts: false
+
+  # Existing objects are skipped rather than overwritten.
+  existingResourcePolicy: none
+
+  itemOperationTimeout: 8h
+
+  uploaderConfig:
+    parallelFilesDownload: 4
+    writeSparseFiles: true

@@ -1,0 +1,30 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  # Use a unique name for every restore.
+  name: librenms-recovery-CHANGE-ME
+  namespace: velero
+spec:
+  # Use an exact backup name for controlled recovery.
+  backupName: daily-everything-CHANGE-ME
+
+  includedNamespaces:
+    - librenms
+
+  excludedResources:
+    - events
+    - events.events.k8s.io
+    - leases.coordination.k8s.io
+    - ciliumendpoints.cilium.io
+
+  restorePVs: true
+  preserveNodePorts: false
+
+  # Existing objects are skipped rather than overwritten.
+  existingResourcePolicy: none
+
+  itemOperationTimeout: 8h
+
+  uploaderConfig:
+    parallelFilesDownload: 4
+    writeSparseFiles: true

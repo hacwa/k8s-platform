@@ -1,0 +1,28 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  # Use a unique name for every restore.
+  name: latest-daily-recovery-CHANGE-ME
+  namespace: velero
+spec:
+  # Velero selects the most recent successful backup created by this schedule.
+  scheduleName: daily-everything
+
+  includedNamespaces:
+    - keycloak
+
+  excludedResources:
+    - events
+    - events.events.k8s.io
+    - leases.coordination.k8s.io
+    - ciliumendpoints.cilium.io
+
+  restorePVs: true
+  preserveNodePorts: false
+  existingResourcePolicy: none
+
+  itemOperationTimeout: 8h
+
+  uploaderConfig:
+    parallelFilesDownload: 4
+    writeSparseFiles: true

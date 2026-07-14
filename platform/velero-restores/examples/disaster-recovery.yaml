@@ -1,0 +1,30 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  # Use a unique name for every restore.
+  name: cluster-recovery-CHANGE-ME
+  namespace: velero
+spec:
+  # Disaster recovery should normally use a reviewed, exact backup.
+  backupName: daily-everything-CHANGE-ME
+
+  excludedNamespaces:
+    - velero
+
+  includeClusterResources: true
+
+  excludedResources:
+    - events
+    - events.events.k8s.io
+    - leases.coordination.k8s.io
+    - ciliumendpoints.cilium.io
+
+  restorePVs: true
+  preserveNodePorts: false
+  existingResourcePolicy: none
+
+  itemOperationTimeout: 8h
+
+  uploaderConfig:
+    parallelFilesDownload: 4
+    writeSparseFiles: true

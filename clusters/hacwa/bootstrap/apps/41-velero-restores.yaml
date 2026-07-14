@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero-restores
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "41"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/velero-restores/requests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+
+  # Deliberately no automated sync policy.
+  # Restore objects must be reviewed and manually synced in the Argo CD UI.
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
