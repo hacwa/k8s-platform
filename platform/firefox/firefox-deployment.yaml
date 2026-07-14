@@ -30,9 +30,17 @@ spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
 
+      # Explicit numeric IDs avoid containerd attempting to resolve the
+      # image's absolute /etc/passwd and /etc/group symlinks.
+      #
+      # The Jlesage entrypoint starts as root and then runs Firefox using
+      # USER_ID and GROUP_ID below.
       securityContext:
+        runAsUser: 0
+        runAsGroup: 0
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+        supplementalGroupsPolicy: Strict
         seccompProfile:
           type: RuntimeDefault
 
