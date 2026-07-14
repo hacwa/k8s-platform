@@ -8,32 +8,40 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 2
+
   strategy:
     type: Recreate
+
   selector:
     matchLabels:
       app.kubernetes.io/name: keycloak
+
   template:
     metadata:
       labels:
         app.kubernetes.io/name: keycloak
+
     spec:
       terminationGracePeriodSeconds: 60
+
       initContainers:
         - name: wait-for-postgresql
           image: docker.io/library/postgres:18.2
           imagePullPolicy: IfNotPresent
+
           env:
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
                   name: keycloak-postgresql
                   key: database
+
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: keycloak-postgresql
                   key: username
+
           command:
             - /bin/sh
             - -ec
@@ -45,49 +53,72 @@ spec:
                 --dbname="$POSTGRES_DB"; do
                 sleep 2
               done
+
       containers:
         - name: keycloak
           image: registry.hacwa.co.uk/hacwa/image-public/keycloak:0.1.0
           imagePullPolicy: IfNotPresent
+
           args:
             - start
             - --optimized
+
           env:
             - name: KC_DB_URL
               value: jdbc:postgresql://keycloak-postgresql:5432/keycloak
+
             - name: KC_DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: keycloak-postgresql
                   key: username
+
             - name: KC_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keycloak-postgresql
                   key: password
+
             - name: KC_HTTP_ENABLED
               value: "true"
+
             - name: KC_HTTP_PORT
               value: "8080"
+
             - name: KC_PROXY_HEADERS
               value: xforwarded
+
             - name: KC_HOSTNAME
               value: https://keycloak.hacwa.co.uk
+
             - name: KC_HOSTNAME_STRICT
               value: "true"
+
+            # Adds HTTP request histogram buckets for latency panels.
+            - name: KC_HTTP_METRICS_HISTOGRAMS_ENABLED
+              value: "true"
+
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: keycloak-bootstrap-admin
                   key: username
+
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keycloak-bootstrap-admin
                   key: password
+
           ports:
             - name: http
               containerPort: 8080
+              protocol: TCP
+
+            - name: management
+              containerPort: 9000
+              protocol: TCP
+
           resources:
             requests:
               cpu: 500m
@@ -95,17 +126,20 @@ spec:
             limits:
               cpu: "2"
               memory: 3Gi
+
           startupProbe:
             tcpSocket:
               port: http
             failureThreshold: 60
             periodSeconds: 5
+
           readinessProbe:
             tcpSocket:
               port: http
             failureThreshold: 6
             periodSeconds: 10
             timeoutSeconds: 5
+
           livenessProbe:
             tcpSocket:
               port: http

@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: keycloak-external
+  namespace: keycloak
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: keycloak
+spec:
+  jobName: keycloak-external
+  interval: 30s
+  scrapeTimeout: 15s
+  module: platform_https_public
+
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+    scheme: http
+
+  targets:
+    staticConfig:
+      static:
+        - https://keycloak.hacwa.co.uk/realms/master/.well-known/openid-configuration
+
+      labels:
+        application: keycloak
+        endpoint: oidc-discovery

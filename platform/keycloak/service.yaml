@@ -7,9 +7,18 @@ metadata:
     app.kubernetes.io/name: keycloak
 spec:
   type: ClusterIP
+
   selector:
     app.kubernetes.io/name: keycloak
+
   ports:
     - name: http
       port: 80
       targetPort: http
+      protocol: TCP
+
+    # Internal-only management endpoint for Prometheus.
+    - name: management
+      port: 9000
+      targetPort: management
+      protocol: TCP
