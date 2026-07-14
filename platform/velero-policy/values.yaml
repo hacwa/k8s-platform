@@ -68,3 +68,8 @@ alerts:
 
   # Counter-based failure alerts look for new failures during this window.
   counterWindow: "1h"
+
+dashboard:
+  enabled: true
+  namespace: monitoring
+  refresh: "30s"
