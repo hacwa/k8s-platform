@@ -781,7 +781,7 @@ data:
               "expr": "up{namespace=\"velero\",job=\"velero/node-agent\"}",
               "format": "table",
               "instant": true,
-              "legendFormat": "{{node}}",
+              "legendFormat": "{{ "{{node}}" }}",
               "range": false,
               "refId": "A"
             }
@@ -855,7 +855,7 @@ data:
               "expr": "ALERTS{component=\"velero\",alertstate=\"firing\"}",
               "format": "table",
               "instant": true,
-              "legendFormat": "{{alertname}}",
+              "legendFormat": "{{ "{{alertname}}" }}",
               "range": false,
               "refId": "A"
             }
