@@ -19,21 +19,21 @@ spec:
           existingSecret: librenms-app
           timezone: Europe/London
 
-          frontend:
-            replicas: 1
+            frontend:
+              replicas: 1
 
-          poller:
-            replicas: 1
+            poller:
+              replicas: 1
 
-          rrdcached:
-            persistence:
-              enabled: true
-              journal:
-                storageClassName: rook-ceph-block
-                size: 1Gi
-              rrdcached:
-                storageClassName: rook-ceph-block
-                size: 20Gi
+            rrdcached:
+              persistence:
+                enabled: true
+                journal:
+                  storageClassName: rook-ceph-block
+                  size: 1Gi
+                rrdcached:
+                  storageClassName: rook-ceph-block
+                  size: 20Gi
 
         mysql:
           enabled: true
