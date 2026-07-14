@@ -88,16 +88,13 @@ spec:
             replicas: 1
 
             extraVolumes:
-              - name: keycloak-provider-init
-                configMap:
-                  name: librenms-keycloak-provider
-                  defaultMode: 0755
+              - name: librenms-vendor
+                persistentVolumeClaim:
+                  claimName: librenms-vendor
 
             extraVolumeMounts:
-              - name: keycloak-provider-init
-                mountPath: /etc/cont-init.d/99-keycloak-provider.sh
-                subPath: 99-keycloak-provider.sh
-                readOnly: true
+              - name: librenms-vendor
+                mountPath: /opt/librenms/vendor
 
           poller:
             replicas: 1

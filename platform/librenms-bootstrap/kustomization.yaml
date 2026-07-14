@@ -3,12 +3,4 @@ kind: Kustomization
 
 resources:
   - external-secrets.yaml
-
-configMapGenerator:
-  - name: librenms-keycloak-provider
-    namespace: librenms
-    files:
-      - 99-keycloak-provider.sh=keycloak-provider-init.sh
-
-generatorOptions:
-  disableNameSuffixHash: true
+  - keycloak-provider-vendor.yaml

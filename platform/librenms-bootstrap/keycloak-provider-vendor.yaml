@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: librenms-vendor
+  namespace: librenms
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-block
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: librenms-keycloak-provider-5-3-0
+  namespace: librenms
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 1800
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: librenms
+        app.kubernetes.io/component: keycloak-provider
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: install-provider
+          image: docker.io/librenms/librenms:26.6.1
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /bin/sh
+            - -ec
+
+          args:
+            - |
+              echo "Preparing persistent LibreNMS Composer vendor directory..."
+
+              find /provider-vendor -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+              cp -a /opt/librenms/vendor/. /provider-vendor/
+
+              cd /opt/librenms
+
+              COMPOSER_ALLOW_SUPERUSER=1 \
+              COMPOSER_VENDOR_DIR=/provider-vendor \
+              FORCE=1 \
+              composer require socialiteproviders/keycloak:5.3.0 \
+                --no-interaction \
+                --no-progress \
+                --prefer-dist \
+                --update-no-dev \
+                --no-scripts
+
+              test -f /provider-vendor/autoload.php
+
+              php -r '
+              require "/provider-vendor/autoload.php";
+
+              if (!class_exists(
+                  "SocialiteProviders\\Keycloak\\KeycloakExtendSocialite"
+              )) {
+                  fwrite(STDERR, "Keycloak provider class is missing\n");
+                  exit(1);
+              }
+
+              echo "Keycloak provider class verified\n";
+              '
+
+              chown -R librenms:librenms /provider-vendor
+
+              echo "Persistent LibreNMS vendor directory is ready."
+
+          volumeMounts:
+            - name: vendor
+              mountPath: /provider-vendor
+
+      volumes:
+        - name: vendor
+          persistentVolumeClaim:
+            claimName: librenms-vendor
