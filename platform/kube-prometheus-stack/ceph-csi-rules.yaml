@@ -9,38 +9,58 @@ spec:
   groups:
     - name: ceph-csi.availability
       rules:
-        - alert: CephCSIMetricsMissing
+        - alert: CephCSIOperatorUnavailable
           expr: |
-            absent(
-              csi_liveness{
-                namespace="rook-ceph"
-              }
-            )
-          for: 10m
-          labels:
-            severity: critical
-            namespace: rook-ceph
-          annotations:
-            summary: Ceph CSI metrics are missing
-            description: >-
-              Prometheus has received no Ceph CSI liveness metrics
-              from the rook-ceph namespace for ten minutes.
-
-        - alert: CephCSIDriverUnhealthy
-          expr: |
-            csi_liveness{
-              namespace="rook-ceph"
-            } == 0
+            kube_deployment_status_replicas_available{
+              namespace="rook-ceph",
+              deployment="ceph-csi-controller-manager"
+            } < 1
           for: 5m
           labels:
             severity: critical
             namespace: rook-ceph
           annotations:
-            summary: >-
-              Ceph CSI driver is unhealthy on {{ $labels.pod }}
+            summary: Ceph CSI operator is unavailable
             description: >-
-              The Ceph CSI liveness probe for {{ $labels.pod }}
-              has failed for more than five minutes.
+              The ceph-csi-controller-manager deployment has had no
+              available replica for more than five minutes.
+
+        - alert: CephCSIRBDControllerUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="rook-ceph",
+              deployment="rook-ceph.rbd.csi.ceph.com-ctrlplugin"
+            } < 1
+          for: 5m
+          labels:
+            severity: critical
+            namespace: rook-ceph
+          annotations:
+            summary: Ceph RBD CSI controller is unavailable
+            description: >-
+              The RBD CSI controller deployment has had no available
+              replica for more than five minutes.
+
+        - alert: CephCSIRBDNodePluginUnavailable
+          expr: |
+            kube_daemonset_status_number_ready{
+              namespace="rook-ceph",
+              daemonset="rook-ceph.rbd.csi.ceph.com-nodeplugin"
+            }
+            <
+            kube_daemonset_status_desired_number_scheduled{
+              namespace="rook-ceph",
+              daemonset="rook-ceph.rbd.csi.ceph.com-nodeplugin"
+            }
+          for: 5m
+          labels:
+            severity: critical
+            namespace: rook-ceph
+          annotations:
+            summary: Ceph RBD CSI node plugin is unavailable
+            description: >-
+              The RBD CSI node plugin has not been ready on every
+              scheduled node for more than five minutes.
 
     - name: ceph-csi.provisioning
       rules:
