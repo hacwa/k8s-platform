@@ -1,0 +1,112 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "39"
+spec:
+  project: default
+
+  source:
+    repoURL: https://vmware-tanzu.github.io/helm-charts
+    chart: velero
+    targetRevision: 12.1.0
+
+    helm:
+      releaseName: velero
+
+      values: |
+        image:
+          repository: docker.io/velero/velero
+          tag: v1.18.1
+          pullPolicy: IfNotPresent
+
+        initContainers:
+          - name: velero-plugin-for-aws
+            image: docker.io/velero/velero-plugin-for-aws:v1.14.2
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - name: plugins
+                mountPath: /target
+
+        credentials:
+          useSecret: true
+          existingSecret: cloud-credentials
+
+        backupsEnabled: false
+        snapshotsEnabled: false
+
+        deployNodeAgent: true
+
+        configuration:
+          uploaderType: kopia
+          features: EnableCSI
+          defaultBackupStorageLocation: default
+          defaultSnapshotMoveData: true
+          defaultItemOperationTimeout: 4h
+          dataMoverPrepareTimeout: 30m
+
+        nodeAgent:
+          disableHostPath: true
+
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Equal
+              value: "true"
+              effect: NoSchedule
+
+        metrics:
+          enabled: true
+
+          serviceMonitor:
+            enabled: true
+            autodetect: true
+            additionalLabels:
+              release: kube-prometheus-stack
+
+          nodeAgentPodMonitor:
+            enabled: true
+            autodetect: true
+            additionalLabels:
+              release: kube-prometheus-stack
+
+        extraObjects:
+          - apiVersion: velero.io/v1
+            kind: BackupStorageLocation
+            metadata:
+              name: default
+              namespace: velero
+            spec:
+              provider: aws
+              default: true
+              accessMode: ReadWrite
+
+              credential:
+                name: cloud-credentials
+                key: cloud
+
+              objectStorage:
+                bucket: velero-hacwa
+                caCertRef:
+                  name: minio-ca
+                  key: ca.crt
+
+              config:
+                region: minio
+                s3ForcePathStyle: "true"
+                s3Url: https://minio.hacwa.internal
+                checksumAlgorithm: ""
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
