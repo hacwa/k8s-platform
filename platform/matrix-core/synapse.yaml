@@ -84,7 +84,8 @@ spec:
                 __JSON_DATABASE_PASSWORD__:/secrets/database-password \
                 __JSON_FORM_SECRET__:/secrets/form-secret \
                 __JSON_MACAROON_SECRET__:/secrets/macaroon-secret-key \
-                __JSON_REGISTRATION_SECRET__:/secrets/registration-shared-secret
+                __JSON_REGISTRATION_SECRET__:/secrets/registration-shared-secret \
+                __JSON_MAS_SHARED_SECRET__:/secrets/mas-shared-secret
 
               cp \
                 /templates/log.config \
@@ -198,6 +199,8 @@ spec:
                       path: signing.key
                     - key: turn-shared-secret
                       path: turn-shared-secret
+                    - key: mas-shared-secret
+                      path: mas-shared-secret
 
         - name: media
           persistentVolumeClaim:

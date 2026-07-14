@@ -76,6 +76,11 @@ log_config: /data/log.config
 
 
 
+matrix_authentication_service:
+  enabled: true
+  endpoint: http://mas:8080/
+  secret: __JSON_MAS_SHARED_SECRET__
+
 # Rehearsal safety: this cloned homeserver cannot send externally.
 send_federation: false
 start_pushers: false
