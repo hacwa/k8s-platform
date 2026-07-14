@@ -5,7 +5,6 @@ generatorOptions:
   disableNameSuffixHash: true
 
 resources:
-  - referencegrant.yaml
   - synapse.yaml
   - mas.yaml
   - element.yaml

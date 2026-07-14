@@ -1,19 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: matrix-external-services
+  name: matrix-routes
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "30"
+    argocd.argoproj.io/sync-wave: "29"
 spec:
   project: default
   source:
     repoURL: https://github.com/hacwa/k8s-platform.git
     targetRevision: main
-    path: platform/matrix-routes-retired
+    path: platform/matrix-routes
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-services
+    namespace: matrix
   syncPolicy:
     automated:
       prune: true

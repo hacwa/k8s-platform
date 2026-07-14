@@ -2,7 +2,7 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: HTTPRouteFilter
 metadata:
   name: matrix-well-known-server
-  namespace: external-services
+  namespace: matrix
 spec:
   directResponse:
     contentType: application/json
@@ -15,7 +15,7 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: HTTPRouteFilter
 metadata:
   name: matrix-well-known-client
-  namespace: external-services
+  namespace: matrix
 spec:
   directResponse:
     contentType: application/json
@@ -28,7 +28,7 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: HTTPRouteFilter
 metadata:
   name: matrix-well-known-options
-  namespace: external-services
+  namespace: matrix
 spec:
   directResponse:
     contentType: text/plain
@@ -38,7 +38,7 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: HTTPRouteFilter
 metadata:
   name: matrix-root
-  namespace: external-services
+  namespace: matrix
 spec:
   directResponse:
     contentType: text/plain
