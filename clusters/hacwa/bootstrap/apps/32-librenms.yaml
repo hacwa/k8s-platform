@@ -5,24 +5,13 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "32"
-
 spec:
   project: default
-
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: librenms-mysql
-      namespace: librenms
-      jsonPointers:
-        - /spec/volumeClaimTemplates/0/apiVersion
-        - /spec/volumeClaimTemplates/0/kind
 
   source:
     repoURL: https://www.librenms.org/helm-charts
     chart: librenms
     targetRevision: 8.2.2
-
     helm:
       releaseName: librenms
       values: |
@@ -30,100 +19,35 @@ spec:
           existingSecret: librenms-app
           timezone: Europe/London
 
-          configuration: |
-            $config['distributed_poller_group'] = '0';
-            $config['distributed_poller'] = true;
-            $config['base_url'] = 'https://librenms.hacwa.co.uk';
+        frontend:
+          replicas: 1
 
-            $config['auth']['socialite']['configs']['keycloak']['listener'] = '\SocialiteProviders\Keycloak\KeycloakExtendSocialite';
-            $config['auth']['socialite']['configs']['keycloak']['client_id'] = 'librenms';
-            $config['auth']['socialite']['configs']['keycloak']['client_secret'] = getenv('KEYCLOAK_CLIENT_SECRET');
-            $config['auth']['socialite']['configs']['keycloak']['base_url'] = 'https://keycloak.hacwa.co.uk';
-            $config['auth']['socialite']['configs']['keycloak']['realms'] = 'master';
-            $config['auth']['socialite']['configs']['keycloak']['redirect'] = 'https://librenms.hacwa.co.uk/auth/keycloak/callback';
+        poller:
+          replicas: 1
 
-            $config['auth']['socialite']['register'] = true;
-            $config['auth']['socialite']['redirect'] = false;
-            $config['auth']['socialite']['default_role'] = 'admin';
-
-            $config['email_backend'] = 'smtp';
-            $config['email_from'] = 'librenms-noreply@hacwa.co.uk';
-            $config['email_smtp_host'] = 'smtp.fastmail.com';
-            $config['email_smtp_port'] = 587;
-            $config['email_smtp_secure'] = 'tls';
-            $config['email_smtp_auth'] = true;
-            $config['email_smtp_username'] = getenv('SMTP_USERNAME');
-            $config['email_smtp_password'] = getenv('SMTP_PASSWORD');
-            $config['email_smtp_timeout'] = 10;
-
-          extraEnvs:
-            - name: APP_URL
-              value: https://librenms.hacwa.co.uk
-
-            - name: APP_TRUSTED_PROXIES
-              value: 172.30.0.0/16
-
-            - name: SESSION_SECURE_COOKIE
-              value: "true"
-
-            - name: KEYCLOAK_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: librenms-app
-                  key: keycloak-client-secret
-
-            - name: SMTP_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: librenms-app
-                  key: smtp-username
-
-            - name: SMTP_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: librenms-app
-                  key: smtp-password
-
-          frontend:
-            replicas: 1
-
-            extraVolumes:
-              - name: librenms-vendor
-                persistentVolumeClaim:
-                  claimName: librenms-vendor
-
-            extraVolumeMounts:
-              - name: librenms-vendor
-                mountPath: /opt/librenms/vendor
-
-          poller:
-            replicas: 1
-
-          rrdcached:
-            persistence:
-              enabled: true
-
-              journal:
-                storageClassName: rook-ceph-block
-                size: 1Gi
-
-              rrdcached:
-                storageClassName: rook-ceph-block
-                size: 20Gi
+        rrdcached:
+          persistence:
+            enabled: true
+            journal:
+              storageClassName: rook-ceph-block
+              size: 1Gi
+            rrdcached:
+              storageClassName: rook-ceph-block
+              size: 20Gi
 
         mysql:
           enabled: true
           architecture: standalone
-
           auth:
             database: librenms
             username: librenms
             existingSecret: librenms-mysql-auth
-
           existingAuthSecret:
             name: librenms-mysql-auth
             key: mysql-user-password
-
+          extraEnv:
+            - name: TZ
+              value: Europe/London
           standalone:
             persistence:
               enabled: true
@@ -133,7 +57,6 @@ spec:
         redis:
           enabled: true
           architecture: standalone
-
           auth:
             enabled: false
 
@@ -148,7 +71,6 @@ spec:
     automated:
       prune: false
       selfHeal: true
-
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
