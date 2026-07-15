@@ -88,14 +88,11 @@ spec:
 
               objectStorage:
                 bucket: velero-hacwa
-                caCertRef:
-                  name: minio-ca
-                  key: ca.crt
 
               config:
                 region: minio
                 s3ForcePathStyle: "true"
-                s3Url: https://minio.hacwa.internal
+                s3Url: http://10.0.6.5:9000
                 checksumAlgorithm: ""
 
   destination:
