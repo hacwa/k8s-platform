@@ -1,0 +1,98 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: hacwa
+  namespace: elastic-stack
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/part-of: elastic-stack
+spec:
+  version: 9.4.3
+  count: 1
+
+  elasticsearchRef:
+    name: hacwa
+
+  secureSettings:
+    - secretName: hacwa-kibana-encryption-keys
+
+  config:
+    server.publicBaseUrl: https://elk.hacwa.co.uk
+
+    xpack.fleet.agents.elasticsearch.hosts:
+      - https://elasticsearch.hacwa.co.uk
+
+    xpack.fleet.agents.fleet_server.hosts:
+      - https://fleet.hacwa.co.uk
+
+    xpack.fleet.packages:
+      - name: system
+        version: latest
+      - name: elastic_agent
+        version: latest
+      - name: fleet_server
+        version: latest
+      - name: kubernetes
+        version: latest
+      - name: apm
+        version: latest
+
+    xpack.fleet.agentPolicies:
+      - name: Fleet Server on ECK policy
+        id: eck-fleet-server
+        namespace: default
+        is_managed: true
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        inactivity_timeout: 900
+        package_policies:
+          - name: fleet_server-1
+            id: fleet_server-1
+            package:
+              name: fleet_server
+
+      - name: Elastic Agent on ECK policy
+        id: eck-agent
+        namespace: default
+        is_managed: true
+        is_default: true
+        monitoring_enabled:
+          - logs
+          - metrics
+        unenroll_timeout: 900
+        inactivity_timeout: 900
+        package_policies:
+          - name: system-1
+            id: system-1
+            package:
+              name: system
+          - name: kubernetes-1
+            id: kubernetes-1
+            package:
+              name: kubernetes
+
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kibana
+        app.kubernetes.io/part-of: elastic-stack
+    spec:
+      containers:
+        - name: kibana
+          env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=1536
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi

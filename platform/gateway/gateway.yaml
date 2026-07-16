@@ -31,3 +31,10 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+
+    - name: syslog-udp
+      port: 5514
+      protocol: UDP
+      allowedRoutes:
+        namespaces:
+          from: All

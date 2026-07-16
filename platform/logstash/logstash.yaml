@@ -1,0 +1,140 @@
+apiVersion: logstash.k8s.elastic.co/v1alpha1
+kind: Logstash
+metadata:
+  name: hacwa
+  namespace: elastic-stack
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/part-of: elastic-stack
+spec:
+  version: 9.4.3
+  count: 1
+
+  elasticsearchRefs:
+    - name: hacwa
+      clusterName: hacwa
+
+  config:
+    pipeline.workers: 2
+    pipeline.batch.size: 125
+    queue.type: memory
+    log.level: info
+
+  pipelines:
+    - pipeline.id: unifi-syslog
+      config.string: |
+        input {
+          udp {
+            port => 5514
+            id => "unifi-syslog-udp"
+          }
+        }
+
+        filter {
+          mutate {
+            replace => {
+              "[event][original]" => "%{message}"
+            }
+          }
+
+          grok {
+            match => {
+              "message" => "^<%{NONNEGINT:[syslog][pri]}>%{SYSLOGTIMESTAMP:[syslog][timestamp]} %{HOSTNAME:[host][name]} (?<unifi.deviceinfo>[^:]+): (?<process.name>[^\\[]+)(?:\\[(?<process.pid>\\d+)\\])?: %{GREEDYDATA:message}$"
+            }
+            overwrite => ["message"]
+            tag_on_failure => ["_unifi_syslog_grok_failure"]
+          }
+
+          if [syslog][pri] {
+            mutate {
+              convert => {
+                "[syslog][pri]" => "integer"
+              }
+            }
+          }
+
+          if [process][pid] {
+            mutate {
+              convert => {
+                "[process][pid]" => "integer"
+              }
+            }
+          }
+
+          if [syslog][timestamp] {
+            date {
+              match => [
+                "[syslog][timestamp]",
+                "MMM  d HH:mm:ss",
+                "MMM dd HH:mm:ss"
+              ]
+              timezone => "Europe/London"
+              target => "@timestamp"
+            }
+          }
+
+          mutate {
+            add_field => {
+              "[event][dataset]" => "unifi.syslog"
+              "[service][type]" => "unifi"
+            }
+          }
+        }
+
+        output {
+          elasticsearch {
+            hosts => ["${HACWA_ES_HOSTS}"]
+            user => "${HACWA_ES_USER}"
+            password => "${HACWA_ES_PASSWORD}"
+            ssl_certificate_authorities => "${HACWA_ES_SSL_CERTIFICATE_AUTHORITY}"
+            index => "logstash-udm-syslog-%{+YYYY.MM.dd}"
+          }
+        }
+
+  services:
+    - name: syslog
+      service:
+        metadata:
+          labels:
+            app.kubernetes.io/name: logstash-syslog
+            app.kubernetes.io/part-of: elastic-stack
+        spec:
+          type: ClusterIP
+          ports:
+            - name: syslog-udp
+              port: 5514
+              protocol: UDP
+              targetPort: 5514
+
+  volumeClaimTemplates:
+    - metadata:
+        name: logstash-data
+        labels:
+          app.kubernetes.io/name: logstash-data
+          app.kubernetes.io/part-of: elastic-stack
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: rook-ceph-block
+        resources:
+          requests:
+            storage: 2Gi
+
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: logstash
+        app.kubernetes.io/part-of: elastic-stack
+    spec:
+      containers:
+        - name: logstash
+          env:
+            - name: LS_JAVA_OPTS
+              value: -Xms1g -Xmx1g
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi

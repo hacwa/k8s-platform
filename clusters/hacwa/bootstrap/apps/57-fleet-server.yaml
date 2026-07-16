@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-server
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "57"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/fleet-server
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elastic-stack
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
