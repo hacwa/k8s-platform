@@ -65,6 +65,12 @@ data:
     cat "${SETTINGS_RESULT}"
     echo
 
+    if ! tr -d '[:space:]' < "${SETTINGS_RESULT}" |
+         grep -q '"acknowledged":true'; then
+      echo "ERROR: Elasticsearch did not acknowledge the index settings update." >&2
+      exit 1
+    fi
+
     echo "===== WAIT FOR GREEN CLUSTER ====="
 
     es_curl \
@@ -74,39 +80,29 @@ data:
     cat "${HEALTH_AFTER}"
     echo
 
-    python3 - "${HEALTH_AFTER}" <<'PY'
-    import json
-    import sys
+    HEALTH_COMPACT="$(
+      tr -d '[:space:]' < "${HEALTH_AFTER}"
+    )"
 
-    path = sys.argv[1]
+    if printf '%s\n' "${HEALTH_COMPACT}" |
+       grep -q '"timed_out":true'; then
+      echo "ERROR: Elasticsearch health request timed out." >&2
+      exit 1
+    fi
 
-    with open(path, encoding="utf-8") as handle:
-        health = json.load(handle)
+    if ! printf '%s\n' "${HEALTH_COMPACT}" |
+         grep -q '"status":"green"'; then
+      echo "ERROR: Elasticsearch did not become green." >&2
+      exit 1
+    fi
 
-    status = health.get("status")
-    timed_out = health.get("timed_out")
-    unassigned = health.get("unassigned_shards")
+    if ! printf '%s\n' "${HEALTH_COMPACT}" |
+         grep -q '"unassigned_shards":0'; then
+      echo "ERROR: Elasticsearch still has unassigned shards." >&2
+      exit 1
+    fi
 
-    if timed_out:
-        raise SystemExit("Elasticsearch health request timed out")
-
-    if status != "green":
-        raise SystemExit(
-            f"Elasticsearch did not become green: status={status}"
-        )
-
-    if unassigned != 0:
-        raise SystemExit(
-            "Elasticsearch still has unassigned shards: "
-            f"{unassigned}"
-        )
-
-    print(
-        "ELASTICSEARCH_SINGLE_NODE_POLICY_COMPLETE "
-        f"status={status} "
-        f"unassigned_shards={unassigned}"
-    )
-    PY
+    echo "ELASTICSEARCH_SINGLE_NODE_POLICY_COMPLETE status=green unassigned_shards=0"
 ---
 apiVersion: batch/v1
 kind: Job
@@ -137,6 +133,9 @@ spec:
 
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
 
@@ -146,6 +145,7 @@ spec:
           imagePullPolicy: IfNotPresent
 
           command:
+            - /bin/sh
             - /policy/reconcile.sh
 
           envFrom:
@@ -168,6 +168,9 @@ spec:
               memory: 128Mi
 
           securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -234,6 +237,9 @@ spec:
 
           securityContext:
             runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
 
@@ -243,6 +249,7 @@ spec:
               imagePullPolicy: IfNotPresent
 
               command:
+                - /bin/sh
                 - /policy/reconcile.sh
 
               envFrom:
@@ -265,6 +272,9 @@ spec:
                   memory: 128Mi
 
               securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
                 allowPrivilegeEscalation: false
                 capabilities:
                   drop:
