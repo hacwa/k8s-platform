@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dependency-track-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "52"
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/dependency-track-bootstrap
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dependency-track
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

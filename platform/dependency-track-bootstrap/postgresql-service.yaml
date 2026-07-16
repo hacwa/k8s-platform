@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dependency-track-postgresql
+  namespace: dependency-track
+  labels:
+    app.kubernetes.io/name: dependency-track-postgresql
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: dependency-track-postgresql
+
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP

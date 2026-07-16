@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dependency-track-postgresql
+  namespace: dependency-track
+  labels:
+    app.kubernetes.io/name: dependency-track-postgresql
+spec:
+  serviceName: dependency-track-postgresql
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dependency-track-postgresql
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dependency-track-postgresql
+
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: postgresql
+          image: docker.io/library/postgres:17.10-alpine
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: POSTGRES_DB
+              value: dtrackdb
+
+            - name: POSTGRES_USER
+              value: dtrack
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dependency-track-secrets
+                  key: postgres-password
+
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -U dtrack -d dtrackdb
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -U dtrack -d dtrackdb
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dependency-track-postgresql-data

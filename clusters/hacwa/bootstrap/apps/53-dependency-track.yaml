@@ -1,0 +1,235 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dependency-track
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "53"
+spec:
+  project: default
+
+  source:
+    repoURL: https://dependencytrack.github.io/helm-charts
+    chart: dependency-track
+    targetRevision: 1.2.0
+
+    helm:
+      releaseName: dependency-track
+      values: |
+        common:
+          enableServiceLinks: false
+        
+          secretKey:
+            createSecret: false
+            existingSecretName: dependency-track-secrets
+        
+          serviceAccount:
+            create: true
+            automount: false
+        
+        apiServer:
+          deploymentType: StatefulSet
+          replicaCount: 1
+        
+          image:
+            repository: dependencytrack/apiserver
+            tag: "4.14.2"
+            pullPolicy: IfNotPresent
+        
+          metrics:
+            enabled: true
+        
+          resources:
+            requests:
+              cpu: "2"
+              memory: 5Gi
+        
+            limits:
+              cpu: "4"
+              memory: 6Gi
+        
+          persistentVolume:
+            enabled: true
+            className: rook-ceph-block
+            size: 5Gi
+        
+          probes:
+            startup:
+              path: /health/started
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 120
+              successThreshold: 1
+        
+            liveness:
+              path: /health/live
+              initialDelaySeconds: 10
+              periodSeconds: 15
+              timeoutSeconds: 5
+              failureThreshold: 6
+              successThreshold: 1
+        
+            readiness:
+              path: /health/ready
+              initialDelaySeconds: 10
+              periodSeconds: 15
+              timeoutSeconds: 5
+              failureThreshold: 6
+              successThreshold: 1
+        
+          initContainers:
+            - name: wait-for-postgresql
+              image: docker.io/library/postgres:17.10-alpine
+              imagePullPolicy: IfNotPresent
+        
+              command:
+                - sh
+                - -ec
+                - |
+                  until pg_isready \
+                    --host=dependency-track-postgresql \
+                    --port=5432 \
+                    --username=dtrack \
+                    --dbname=dtrackdb
+                  do
+                    echo "Waiting for Dependency-Track PostgreSQL..."
+                    sleep 3
+                  done
+        
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+        
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+        
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+        
+          extraEnv:
+            - name: ALPINE_DATABASE_MODE
+              value: external
+        
+            - name: ALPINE_DATABASE_DRIVER
+              value: org.postgresql.Driver
+        
+            - name: ALPINE_DATABASE_URL
+              value: jdbc:postgresql://dependency-track-postgresql:5432/dtrackdb
+        
+            - name: ALPINE_DATABASE_USERNAME
+              value: dtrack
+        
+            - name: ALPINE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dependency-track-secrets
+                  key: postgres-password
+        
+            - name: ALPINE_OIDC_ENABLED
+              value: "true"
+        
+            - name: ALPINE_OIDC_CLIENT_ID
+              value: dependency-track
+        
+            - name: ALPINE_OIDC_ISSUER
+              value: https://keycloak.hacwa.co.uk/realms/master
+        
+            - name: ALPINE_OIDC_USERNAME_CLAIM
+              value: preferred_username
+        
+            - name: ALPINE_OIDC_USER_PROVISIONING
+              value: "true"
+        
+            - name: ALPINE_OIDC_TEAMS_CLAIM
+              value: groups
+        
+            - name: ALPINE_OIDC_TEAM_SYNCHRONIZATION
+              value: "true"
+        
+            - name: ALPINE_UPLOAD_MAXSIZE
+              value: 100MB
+        
+            - name: LOGGING_CONFIG_PATH
+              value: logback-json.xml
+        
+          service:
+            type: ClusterIP
+        
+          serviceMonitor:
+            enabled: true
+            namespace: monitoring
+            scrapeInterval: 30s
+            scrapeTimeout: 10s
+        
+            labels:
+              release: kube-prometheus-stack
+        
+        frontend:
+          replicaCount: 1
+        
+          image:
+            repository: dependencytrack/frontend
+            tag: "4.14.2"
+            pullPolicy: IfNotPresent
+        
+          apiBaseUrl: https://dependencytrack.hacwa.co.uk
+        
+          extraEnv:
+            - name: OIDC_ISSUER
+              value: https://keycloak.hacwa.co.uk/realms/master
+        
+            - name: OIDC_CLIENT_ID
+              value: dependency-track
+        
+            - name: OIDC_LOGIN_BUTTON_TEXT
+              value: Keycloak
+        
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+        
+            limits:
+              cpu: 500m
+              memory: 256Mi
+        
+          service:
+            type: ClusterIP
+        
+        ingress:
+          enabled: false
+        
+        httpRoute:
+          enabled: true
+        
+          hostnames:
+            - dependencytrack.hacwa.co.uk
+        
+          parentRefs:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              name: external-gateway
+              namespace: platform-gateway
+              sectionName: https
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dependency-track
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
