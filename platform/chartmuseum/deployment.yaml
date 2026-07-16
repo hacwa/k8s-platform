@@ -32,7 +32,7 @@ spec:
 
       containers:
         - name: chartmuseum
-          image: ghcr.io/helm/chartmuseum:v0.16.6
+          image: ghcr.io/helm/chartmuseum:v0.16.5
           imagePullPolicy: IfNotPresent
 
           env:
