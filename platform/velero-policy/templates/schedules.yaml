@@ -1,5 +1,4 @@
 {{- $timezone := required "policy.timezone is required" .Values.policy.timezone }}
-
 {{- range $name, $schedule := .Values.policy.schedules }}
 {{- if $schedule.enabled }}
 ---
@@ -17,40 +16,35 @@ spec:
   paused: {{ $schedule.paused }}
   skipImmediately: {{ $schedule.skipImmediately }}
   useOwnerReferencesInBackup: false
-
   template:
     metadata:
       labels:
         app.kubernetes.io/part-of: velero
         hacwa.co.uk/backup-policy: {{ $name | quote }}
-
 {{- with $schedule.includedNamespaces }}
     includedNamespaces:
 {{ toYaml . | nindent 6 }}
 {{- end }}
-
 {{- with $schedule.excludedNamespaces }}
     excludedNamespaces:
 {{ toYaml . | nindent 6 }}
 {{- end }}
-
     includeClusterResources: {{ $schedule.includeClusterResources }}
-
 {{- with $schedule.excludedResources }}
     excludedResources:
 {{ toYaml . | nindent 6 }}
 {{- end }}
-
     storageLocation: {{ $schedule.storageLocation | quote }}
-
     snapshotVolumes: {{ $schedule.snapshotVolumes }}
     snapshotMoveData: {{ $schedule.snapshotMoveData }}
-
     csiSnapshotTimeout: {{ $schedule.csiSnapshotTimeout | quote }}
     itemOperationTimeout: {{ $schedule.itemOperationTimeout | quote }}
-
     ttl: {{ $schedule.retention | quote }}
-
+{{- if $.Values.policy.resourcePolicy.enabled }}
+    resourcePolicy:
+      kind: ConfigMap
+      name: {{ required "policy.resourcePolicy.name is required" $.Values.policy.resourcePolicy.name }}
+{{- end }}
     uploaderConfig:
       parallelFilesUpload: {{ $schedule.uploader.parallelFilesUpload }}
 {{- end }}

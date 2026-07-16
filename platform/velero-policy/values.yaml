@@ -1,6 +1,16 @@
 policy:
   timezone: Europe/London
 
+  resourcePolicy:
+    enabled: true
+    name: hacwa-volume-policies
+    volumePolicies:
+      - conditions:
+          pvcLabels:
+            hacwa.internal/backup-method: elasticsearch-snapshot
+        action:
+          type: skip
+
   schedules:
     daily-everything:
       enabled: true
@@ -8,13 +18,12 @@ policy:
       # Preserve the schedule without allowing backups to run.
       paused: false
 
-      # This is a one-shot Velero control field.
-      # Velero resets it to false after consuming it, so false is the normal
-      # GitOps steady state.
+      # This is a one-shot Velero control field. Velero resets it to false
+      # after consuming it, so false is the normal GitOps steady state.
       skipImmediately: false
 
-      # Standard five-field cron expression.
-      # The chart adds CRON_TZ=Europe/London.
+      # Standard five-field cron expression. The chart adds
+      # CRON_TZ=Europe/London.
       cron: "0 11 * * *"
 
       # Thirty days.
@@ -41,7 +50,6 @@ policy:
 
       snapshotVolumes: true
       snapshotMoveData: true
-
       csiSnapshotTimeout: "15m"
       itemOperationTimeout: "8h"
 

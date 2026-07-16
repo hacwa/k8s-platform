@@ -1,0 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: elasticsearch-local
+  labels:
+    app.kubernetes.io/name: elasticsearch-local
+    app.kubernetes.io/part-of: elastic-stack
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: false
