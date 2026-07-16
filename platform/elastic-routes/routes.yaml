@@ -24,7 +24,9 @@ metadata:
     app.kubernetes.io/part-of: elastic-stack
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -35,8 +37,12 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: hacwa-kb-http
+        - group: ""
+          kind: Service
+          name: hacwa-kb-http
+          namespace: elastic-stack
           port: 5601
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -48,7 +54,9 @@ metadata:
     app.kubernetes.io/part-of: elastic-stack
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -59,8 +67,12 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: fleet-server-agent-http
+        - group: ""
+          kind: Service
+          name: fleet-server-agent-http
+          namespace: elastic-stack
           port: 8220
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -72,7 +84,9 @@ metadata:
     app.kubernetes.io/part-of: elastic-stack
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -86,6 +100,8 @@ spec:
         - group: gateway.envoyproxy.io
           kind: Backend
           name: hacwa-elasticsearch-tls
+          namespace: elastic-stack
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -97,7 +113,9 @@ metadata:
     app.kubernetes.io/part-of: elastic-stack
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: https
   hostnames:
@@ -108,8 +126,12 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: hacwa-apm-http
+        - group: ""
+          kind: Service
+          name: hacwa-apm-http
+          namespace: elastic-stack
           port: 8200
+          weight: 1
 ---
 apiVersion: gateway.networking.k8s.io/v1alpha2
 kind: UDPRoute
@@ -121,10 +143,16 @@ metadata:
     app.kubernetes.io/part-of: elastic-stack
 spec:
   parentRefs:
-    - name: external-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: external-gateway
       namespace: platform-gateway
       sectionName: syslog-udp
   rules:
     - backendRefs:
-        - name: hacwa-ls-syslog
+        - group: ""
+          kind: Service
+          name: hacwa-ls-syslog
+          namespace: elastic-stack
           port: 5514
+          weight: 1
