@@ -1,0 +1,140 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trivy-operator
+  namespace: argocd
+
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://aquasecurity.github.io/helm-charts/
+    chart: trivy-operator
+    targetRevision: 0.34.0
+
+    helm:
+      releaseName: trivy-operator
+
+      values: |
+        targetNamespaces: ""
+        
+        operator:
+          replicas: 1
+        
+          builtInTrivyServer: true
+          builtInServerRegistryInsecure: false
+        
+          scanJobsConcurrentLimit: 3
+          scanNodeCollectorLimit: 1
+        
+          scanJobTimeout: "10m"
+          scanJobTTL: "10m"
+          scanSecretTTL: "10m"
+        
+          scannerReportTTL: "24h"
+          cacheReportTTL: "120h"
+        
+          vulnerabilityScannerEnabled: true
+          sbomGenerationEnabled: true
+          clusterSbomCacheEnabled: false
+        
+          configAuditScannerEnabled: true
+          rbacAssessmentScannerEnabled: true
+          infraAssessmentScannerEnabled: true
+          clusterComplianceEnabled: true
+          exposedSecretScannerEnabled: true
+        
+          vulnerabilityScannerScanOnlyCurrentRevisions: true
+          configAuditScannerScanOnlyCurrentRevisions: true
+        
+          accessGlobalSecretsAndServiceAccount: true
+        
+          metricsFindingsEnabled: true
+          metricsVulnIdEnabled: false
+          metricsExposedSecretInfo: false
+          metricsConfigAuditInfo: false
+          metricsRbacAssessmentInfo: false
+          metricsInfraAssessmentInfo: false
+          metricsImageInfo: false
+          metricsClusterComplianceInfo: false
+        
+        service:
+          headless: false
+        
+        serviceMonitor:
+          enabled: true
+          namespace: trivy-system
+          interval: 30s
+        
+          labels:
+            release: kube-prometheus-stack
+        
+        trivyOperator:
+          scanJobCompressLogs: true
+          scanJobsInSameNamespace: false
+          reportRecordFailedChecksOnly: true
+        
+        trivy:
+          storageClassEnabled: true
+          storageClassName: rook-ceph-block
+          storageSize: "10Gi"
+        
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignoreUnfixed: false
+          slow: true
+          timeout: "10m0s"
+        
+          additionalVulnerabilityReportFields: >-
+            Description,Links,CVSS,Target,Class,PackagePath,PackageType
+        
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+        
+            limits:
+              cpu: "1"
+              memory: 1Gi
+        
+          server:
+            replicas: 1
+        
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+        
+              limits:
+                cpu: "1"
+                memory: 1Gi
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        
+        nodeCollector:
+          tolerations:
+            - operator: Exists
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: trivy-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - PruneLast=true
