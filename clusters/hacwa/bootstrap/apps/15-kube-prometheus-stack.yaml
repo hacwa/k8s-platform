@@ -140,6 +140,10 @@ spec:
           route:
             main:
               enabled: false
+          hostAliases:
+            - ip: "127.0.0.1"
+              hostnames:
+                - grafana.hacwa.co.uk
           admin:
             existingSecret: grafana-admin
             userKey: admin-user
@@ -169,6 +173,7 @@ spec:
               root_url: https://grafana.hacwa.co.uk
               enforce_domain: true
             auth:
+              oauth_allow_insecure_email_lookup: true
               disable_login_form: false
             auth.generic_oauth:
               enabled: true
@@ -195,10 +200,12 @@ spec:
             dashboards:
               enabled: true
               searchNamespace: ALL
+              reloadURL: "http://grafana.hacwa.co.uk:3000/api/admin/provisioning/dashboards/reload"
             datasources:
               enabled: true
               defaultDatasourceEnabled: true
               isDefaultDatasource: true
+              reloadURL: "http://grafana.hacwa.co.uk:3000/api/admin/provisioning/datasources/reload"
 
         prometheus:
           enabled: true
