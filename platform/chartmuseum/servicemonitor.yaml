@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: chartmuseum
+  namespace: chartmuseum
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: chartmuseum
+spec:
+  namespaceSelector:
+    matchNames:
+      - chartmuseum
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chartmuseum
+
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

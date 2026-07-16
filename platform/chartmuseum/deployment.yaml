@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chartmuseum
+  namespace: chartmuseum
+  labels:
+    app.kubernetes.io/name: chartmuseum
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chartmuseum
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chartmuseum
+
+    spec:
+      automountServiceAccountToken: false
+
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: chartmuseum
+          image: ghcr.io/helm/chartmuseum:v0.16.6
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: STORAGE
+              value: local
+
+            - name: STORAGE_LOCAL_ROOTDIR
+              value: /storage
+
+            - name: DISABLE_API
+              value: "true"
+
+            - name: ALLOW_OVERWRITE
+              value: "false"
+
+            - name: ENABLE_METRICS
+              value: "true"
+
+            - name: LOG_JSON
+              value: "true"
+
+            - name: DEBUG
+              value: "false"
+
+            - name: DEPTH
+              value: "0"
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: data
+              mountPath: /storage
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chartmuseum-data
