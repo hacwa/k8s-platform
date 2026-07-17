@@ -1,0 +1,324 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-server
+  namespace: zabbix
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zabbix
+      app.kubernetes.io/component: server
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zabbix
+        app.kubernetes.io/component: server
+
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+
+      securityContext:
+        fsGroup: 1995
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        - name: wait-for-postgresql
+          image: docker.io/library/postgres:17.9-bookworm
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-postgresql-auth
+                  key: zabbix-password
+
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until pg_isready \
+                --host=zabbix-postgresql \
+                --port=5432 \
+                --username=zabbix \
+                --dbname=zabbixdb
+              do
+                echo "Waiting for Zabbix PostgreSQL..."
+                sleep 3
+              done
+
+              PGPASSWORD="${POSTGRES_PASSWORD}" \
+              psql \
+                --host=zabbix-postgresql \
+                --port=5432 \
+                --username=zabbix \
+                --dbname=zabbixdb \
+                --set=ON_ERROR_STOP=1 \
+                --command="
+              SELECT mandatory, optional
+              FROM dbversion;
+              "
+
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+      containers:
+        - name: zabbix-server
+          image: docker.io/zabbix/zabbix-server-pgsql:alpine-7.4.7
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1997
+            runAsGroup: 1995
+            allowPrivilegeEscalation: true
+
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_RAW
+
+          env:
+            - name: DB_SERVER_HOST
+              value: zabbix-postgresql
+
+            - name: DB_SERVER_PORT
+              value: "5432"
+
+            - name: POSTGRES_DB
+              value: zabbixdb
+
+            - name: POSTGRES_USER
+              value: zabbix
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-postgresql-auth
+                  key: zabbix-password
+
+            - name: DB_SERVER_SCHEMA
+              value: public
+
+            - name: ENABLE_TIMESCALEDB
+              value: "false"
+
+            - name: POSTGRES_USE_IMPLICIT_SEARCH_PATH
+              value: "false"
+
+            - name: ZBX_LISTENPORT
+              value: "10051"
+
+            - name: ZBX_ENABLEGLOBALSCRIPTS
+              value: "0"
+
+            - name: ZBX_TIMEOUT
+              value: "4"
+
+            - name: ZBX_LOGSLOWQUERIES
+              value: "3000"
+
+            - name: ZBX_STATSALLOWEDIP
+              value: 127.0.0.1
+
+            - name: ZBX_STARTJAVAPOLLERS
+              value: "0"
+
+            - name: ZBX_STARTBROWSERPOLLERS
+              value: "0"
+
+            - name: ZBX_ENABLE_SNMP_TRAPS
+              value: "false"
+
+            - name: ZBX_ALLOWSOFTWAREUPDATECHECK
+              value: "0"
+
+            - name: TZ
+              value: Europe/London
+
+          ports:
+            - name: zabbix-trapper
+              containerPort: 10051
+              protocol: TCP
+
+          startupProbe:
+            tcpSocket:
+              port: zabbix-trapper
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+
+          readinessProbe:
+            tcpSocket:
+              port: zabbix-trapper
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            tcpSocket:
+              port: zabbix-trapper
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+
+            limits:
+              cpu: "4"
+              memory: 4Gi
+
+          volumeMounts:
+            - name: server-export
+              mountPath: /var/lib/zabbix/export
+
+            - name: server-snmptraps
+              mountPath: /var/lib/zabbix/snmptraps
+
+        - name: zabbix-agent2
+          image: docker.io/zabbix/zabbix-agent2:alpine-7.4.7
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1997
+            runAsGroup: 1995
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          env:
+            - name: ZBX_HOSTNAME
+              value: Zabbix server
+
+            - name: ZBX_SERVER_HOST
+              value: 127.0.0.1
+
+            - name: ZBX_PASSIVESERVERS
+              value: 127.0.0.1
+
+            - name: ZBX_ACTIVESERVERS
+              value: 127.0.0.1:10051
+
+            - name: ZBX_PASSIVE_ALLOW
+              value: "true"
+
+            - name: ZBX_ACTIVE_ALLOW
+              value: "true"
+
+            - name: ZBX_LISTENPORT
+              value: "10050"
+
+            - name: ZBX_TIMEOUT
+              value: "3"
+
+            - name: TZ
+              value: Europe/London
+
+          ports:
+            - name: agent
+              containerPort: 10050
+              protocol: TCP
+
+          startupProbe:
+            tcpSocket:
+              port: agent
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+
+          readinessProbe:
+            tcpSocket:
+              port: agent
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            tcpSocket:
+              port: agent
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          volumeMounts:
+            - name: agent-buffer
+              mountPath: /var/lib/zabbix/buffer
+
+      volumes:
+        - name: server-export
+          emptyDir: {}
+
+        - name: server-snmptraps
+          emptyDir: {}
+
+        - name: agent-buffer
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-server
+  namespace: zabbix
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: server
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: server
+
+  ports:
+    - name: zabbix-trapper
+      port: 10051
+      targetPort: zabbix-trapper
+      protocol: TCP
