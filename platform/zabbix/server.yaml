@@ -230,11 +230,8 @@ spec:
             - name: ZBX_SERVER_HOST
               value: 127.0.0.1
 
-            - name: ZBX_PASSIVESERVERS
-              value: 127.0.0.1
-
-            - name: ZBX_ACTIVESERVERS
-              value: 127.0.0.1:10051
+            - name: ZBX_SERVER_PORT
+              value: "10051"
 
             - name: ZBX_PASSIVE_ALLOW
               value: "true"
