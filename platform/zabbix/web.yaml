@@ -1,0 +1,234 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-web
+  namespace: zabbix
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+
+  strategy:
+    type: RollingUpdate
+
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zabbix
+      app.kubernetes.io/component: web
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zabbix
+        app.kubernetes.io/component: web
+
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+
+      securityContext:
+        fsGroup: 1995
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        - name: wait-for-postgresql
+          image: docker.io/library/postgres:17.9-bookworm
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-postgresql-auth
+                  key: zabbix-password
+
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until pg_isready \
+                --host=zabbix-postgresql \
+                --port=5432 \
+                --username=zabbix \
+                --dbname=zabbixdb
+              do
+                echo "Waiting for Zabbix PostgreSQL..."
+                sleep 3
+              done
+
+              PGPASSWORD="${POSTGRES_PASSWORD}" \
+              psql \
+                --host=zabbix-postgresql \
+                --port=5432 \
+                --username=zabbix \
+                --dbname=zabbixdb \
+                --set=ON_ERROR_STOP=1 \
+                --command="
+              SELECT mandatory, optional
+              FROM dbversion;
+              "
+
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+      containers:
+        - name: zabbix-web
+          image: docker.io/zabbix/zabbix-web-nginx-pgsql:alpine-7.4.7
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1997
+            runAsGroup: 1995
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL
+
+          env:
+            - name: DB_SERVER_HOST
+              value: zabbix-postgresql
+
+            - name: DB_SERVER_PORT
+              value: "5432"
+
+            - name: POSTGRES_DB
+              value: zabbixdb
+
+            - name: POSTGRES_USER
+              value: zabbix
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-postgresql-auth
+                  key: zabbix-password
+
+            - name: DB_SERVER_SCHEMA
+              value: public
+
+            - name: ZBX_SERVER_HOST
+              value: zabbix-server
+
+            - name: ZBX_SERVER_PORT
+              value: "10051"
+
+            - name: ZBX_SERVER_NAME
+              value: zabbix.hacwa.internal
+
+            - name: ZBX_DB_ENCRYPTION
+              value: "false"
+
+            - name: ZBX_MAXEXECUTIONTIME
+              value: "300"
+
+            - name: ZBX_MEMORYLIMIT
+              value: 128M
+
+            - name: ZBX_POSTMAXSIZE
+              value: 16M
+
+            - name: ZBX_UPLOADMAXFILESIZE
+              value: 2M
+
+            - name: ZBX_MAXINPUTTIME
+              value: "300"
+
+            - name: ENABLE_WEB_ACCESS_LOG
+              value: "true"
+
+            - name: PHP_TZ
+              value: Europe/London
+
+            - name: TZ
+              value: Europe/London
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          startupProbe:
+            httpGet:
+              path: /ping
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 120
+
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+              scheme: HTTP
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-web
+  namespace: zabbix
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: zabbix
+    app.kubernetes.io/component: web
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

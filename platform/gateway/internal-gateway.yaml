@@ -5,22 +5,27 @@ metadata:
   namespace: platform-gateway
 spec:
   gatewayClassName: envoy-gateway
+
   infrastructure:
     parametersRef:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
       name: internal-gateway-proxy
+
   listeners:
     - name: https-internal-wildcard
       hostname: "*.hacwa.internal"
       port: 443
       protocol: HTTPS
+
       tls:
         mode: Terminate
+
         certificateRefs:
           - group: ""
             kind: Secret
             name: hacwa-internal-wildcard-tls
+
       allowedRoutes:
         namespaces:
           from: All
@@ -29,12 +34,27 @@ spec:
       hostname: "hacwa.internal"
       port: 443
       protocol: HTTPS
+
       tls:
         mode: Terminate
+
         certificateRefs:
           - group: ""
             kind: Secret
             name: hacwa-internal-wildcard-tls
+
       allowedRoutes:
         namespaces:
           from: All
+
+    - name: zabbix-server
+      port: 10051
+      protocol: TCP
+
+      allowedRoutes:
+        namespaces:
+          from: All
+
+        kinds:
+          - group: gateway.networking.k8s.io
+            kind: TCPRoute
