@@ -163,6 +163,12 @@ spec:
             - name: ENABLE_WEB_ACCESS_LOG
               value: "true"
 
+            - name: ZBX_SSO_IDP_CERT
+              value: /etc/zabbix/web/certs/idp.crt
+
+            - name: ZBX_SSO_SETTINGS
+              value: '{"baseurl":"https://zabbix.hacwa.internal","use_proxy_headers":true}'
+
             - name: PHP_TZ
               value: Europe/London
 
@@ -209,26 +215,16 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: zabbix-web
-  namespace: zabbix
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-  labels:
-    app.kubernetes.io/name: zabbix
-    app.kubernetes.io/component: web
-spec:
-  type: ClusterIP
 
-  selector:
-    app.kubernetes.io/name: zabbix
-    app.kubernetes.io/component: web
+          volumeMounts:
+            - name: saml-idp-certificate
+              mountPath: /etc/zabbix/web/certs/idp.crt
+              subPath: idp.crt
+              readOnly: true
 
-  ports:
-    - name: http
-      port: 8080
-      targetPort: http
-      protocol: TCP
+      volumes:
+        - name: saml-idp-certificate
+
+          secret:
+            secretName: zabbix-saml-idp-certificate
+            defaultMode: 0444

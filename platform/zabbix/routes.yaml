@@ -23,19 +23,6 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /zabbix
-
-      filters:
-        - type: RequestRedirect
-          requestRedirect:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /
-            statusCode: 302
-
-    - matches:
-        - path:
-            type: PathPrefix
             value: /
 
       backendRefs:
