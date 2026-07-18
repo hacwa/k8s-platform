@@ -9,7 +9,6 @@ metadata:
 spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1800
-
   template:
     metadata:
       labels:
@@ -17,16 +16,13 @@ spec:
         app.kubernetes.io/component: admin-bootstrap
     spec:
       restartPolicy: Never
-
       containers:
         - name: configure-admin
           image: docker.io/librenms/librenms:26.6.1
           imagePullPolicy: IfNotPresent
-
           command:
             - /bin/sh
             - -ec
-
           args:
             - |
               cd /opt/librenms
@@ -36,31 +32,161 @@ spec:
               done
 
               gosu librenms \
-                env ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+                env ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
                 php artisan tinker --execute='$u=\App\Models\User::firstOrNew(["username"=>"admin","auth_type"=>"mysql"]);$u->realname="Administrator";$u->setPassword(getenv("ADMIN_PASSWORD"));$u->save();$u->syncRoles(["admin"]);echo "Local admin reconciled".PHP_EOL;'
 
+              gosu librenms php <<'PHP'
+              <?php
+
+              declare(strict_types=1);
+
+              chdir('/opt/librenms');
+
+              require '/opt/librenms/vendor/autoload.php';
+
+              $app = require '/opt/librenms/bootstrap/app.php';
+
+              $kernel = $app->make(
+                  Illuminate\Contracts\Console\Kernel::class
+              );
+
+              $kernel->bootstrap();
+
+              $authType = 'socialite_keycloak';
+              $username = getenv('LIBRENMS_KEYCLOAK_USERNAME');
+              $authId = getenv('LIBRENMS_KEYCLOAK_AUTH_ID');
+              $email = getenv('LIBRENMS_KEYCLOAK_EMAIL');
+              $realName = getenv('LIBRENMS_KEYCLOAK_REALNAME');
+
+              foreach (
+                  [
+                      'LIBRENMS_KEYCLOAK_USERNAME' => $username,
+                      'LIBRENMS_KEYCLOAK_AUTH_ID' => $authId,
+                      'LIBRENMS_KEYCLOAK_EMAIL' => $email,
+                      'LIBRENMS_KEYCLOAK_REALNAME' => $realName,
+                  ] as $name => $value
+              ) {
+                  if (!is_string($value) || $value === '') {
+                      fwrite(
+                          STDERR,
+                          sprintf("%s is missing or empty\n", $name)
+                      );
+
+                      exit(1);
+                  }
+              }
+
+              $conflictingIdentity = App\Models\User::query()
+                  ->where('auth_type', $authType)
+                  ->where('auth_id', $authId)
+                  ->where('username', '!=', $username)
+                  ->first();
+
+              if ($conflictingIdentity !== null) {
+                  fwrite(
+                      STDERR,
+                      sprintf(
+                          "Keycloak auth ID is already assigned to " .
+                          "LibreNMS username %s\n",
+                          $conflictingIdentity->username
+                      )
+                  );
+
+                  exit(1);
+              }
+
+              $matchingUsers = App\Models\User::query()
+                  ->where('auth_type', $authType)
+                  ->where('username', $username)
+                  ->get();
+
+              if ($matchingUsers->count() > 1) {
+                  fwrite(
+                      STDERR,
+                      sprintf(
+                          "Multiple LibreNMS users exist for %s/%s\n",
+                          $authType,
+                          $username
+                      )
+                  );
+
+                  exit(1);
+              }
+
+              $user = $matchingUsers->first();
+
+              if ($user === null) {
+                  $user = new App\Models\User();
+                  $user->auth_type = $authType;
+                  $user->username = $username;
+
+                  $operation = 'created';
+              } else {
+                  $operation = hash_equals(
+                      (string) $user->auth_id,
+                      $authId
+                  )
+                      ? 'verified'
+                      : 'relinked';
+              }
+
+              $user->auth_id = $authId;
+              $user->email = $email;
+              $user->realname = $realName;
+              $user->enabled = 1;
+              $user->save();
+              $user->syncRoles(['admin']);
+
+              $verified = App\Models\User::query()
+                  ->where('auth_type', $authType)
+                  ->where('username', $username)
+                  ->where('auth_id', $authId)
+                  ->first();
+
+              if ($verified === null) {
+                  fwrite(
+                      STDERR,
+                      "LibreNMS Keycloak user verification failed\n"
+                  );
+
+                  exit(1);
+              }
+
+              echo sprintf(
+                  "Keycloak socialite user %s: " .
+                  "user_id=%d username=%s auth_id=%s\n",
+                  $operation,
+                  $verified->user_id,
+                  $verified->username,
+                  $verified->auth_id
+              );
+              PHP
           envFrom:
             - configMapRef:
                 name: librenms
-
           env:
             - name: HOME
               value: /home/librenms
-
             - name: APP_KEY
               valueFrom:
                 secretKeyRef:
                   name: librenms-app
                   key: appkey
-
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: librenms-mysql-auth
                   key: mysql-user-password
-
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: librenms-app
                   key: admin-password
+            - name: LIBRENMS_KEYCLOAK_USERNAME
+              value: hacwa
+            - name: LIBRENMS_KEYCLOAK_AUTH_ID
+              value: e0663747-6135-462d-a91d-523710be86fe
+            - name: LIBRENMS_KEYCLOAK_EMAIL
+              value: hacwa@hacwa.co.uk
+            - name: LIBRENMS_KEYCLOAK_REALNAME
+              value: Stuart Kennedy
