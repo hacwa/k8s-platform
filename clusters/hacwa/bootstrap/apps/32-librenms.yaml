@@ -78,6 +78,9 @@ spec:
 
           frontend:
             replicas: 1
+            extraEnvs:
+              - name: CLEAR_ENV
+                value: "no"
             extraVolumes:
               - name: librenms-vendor
                 persistentVolumeClaim:
