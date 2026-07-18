@@ -253,27 +253,6 @@ spec:
               containerPort: 10050
               protocol: TCP
 
-          startupProbe:
-            tcpSocket:
-              port: agent
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 60
-
-          readinessProbe:
-            tcpSocket:
-              port: agent
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 6
-
-          livenessProbe:
-            tcpSocket:
-              port: agent
-            periodSeconds: 30
-            timeoutSeconds: 3
-            failureThreshold: 6
-
           resources:
             requests:
               cpu: 50m
