@@ -1,23 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: hacwa-platform-foundation
+  name: hacwa-platform-certificates
   namespace: argocd
 spec:
   project: default
-
   source:
     repoURL: https://github.com/hacwa/k8s-platform.git
     targetRevision: main
     path: clusters/hacwa/bootstrap/apps
     directory:
       recurse: true
-      include: '{00-metallb.yaml,01-metallb-config.yaml,02-gateway-api-crds.yaml,10-rook-ceph-operator.yaml,11-rook-ceph-csi-drivers.yaml,12-rook-ceph-cluster.yaml,24-external-secrets.yaml,25-external-secrets-config.yaml,35-csi-snapshot-crds.yaml,36-csi-snapshot-controller.yaml,37-rook-ceph-csi-rbac.yaml,38-rook-ceph-snapshot-class.yaml,39-velero.yaml}'
-
+      include: '{03-cert-manager.yaml,04-cert-manager-config.yaml,05-envoy-gateway-crds.yaml,05-envoy-gateway.yaml,06-gateway-config.yaml,07-argocd-config.yaml,08-argocd-route.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
-
   syncPolicy:
     automated:
       prune: false
