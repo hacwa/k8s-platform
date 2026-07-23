@@ -5,19 +5,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-
   source:
     repoURL: https://github.com/hacwa/k8s-platform.git
     targetRevision: main
     path: clusters/hacwa/bootstrap/apps
     directory:
       recurse: true
-      include: '{00-metallb.yaml,01-metallb-config.yaml,02-gateway-api-crds.yaml,10-rook-ceph-operator.yaml,11-rook-ceph-csi-drivers.yaml,12-rook-ceph-cluster.yaml,24-external-secrets.yaml,25-external-secrets-config.yaml,35-csi-snapshot-crds.yaml,36-csi-snapshot-controller.yaml,37-rook-ceph-csi-rbac.yaml,38-rook-ceph-snapshot-class.yaml,39-velero.yaml}'
-
+      include: '{00-metallb.yaml,01-metallb-config.yaml,02-gateway-api-crds.yaml,07-argocd-config.yaml,10-rook-ceph-operator.yaml,11-rook-ceph-csi-drivers.yaml,12-rook-ceph-cluster.yaml,24-external-secrets.yaml,25-external-secrets-config.yaml,35-csi-snapshot-crds.yaml,36-csi-snapshot-controller.yaml,37-rook-ceph-csi-rbac.yaml,38-rook-ceph-snapshot-class.yaml,39-velero.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
-
   syncPolicy:
     automated:
       prune: false
