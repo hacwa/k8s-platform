@@ -7,6 +7,23 @@ metadata:
     release: kube-prometheus-stack
 spec:
   groups:
+    - name: jitsi.usage
+      rules:
+        - alert: JitsiConferenceActive
+          expr: |
+            sum(
+              jitsi_participants{
+                namespace="jitsi"
+              }
+            ) > 0
+          labels:
+            severity: notification
+            namespace: jitsi
+          annotations:
+            summary: Jitsi is in use
+            description: >-
+              Jitsi currently has {{ printf "%.0f" $value }} active
+              participant(s).
     - name: jitsi.availability
       rules:
         - alert: JitsiWebUnavailable
@@ -29,7 +46,6 @@ spec:
             description: >-
               The Jitsi web frontend has fewer available replicas than
               requested for more than five minutes.
-
         - alert: JitsiJicofoUnavailable
           expr: |
             kube_deployment_status_replicas_available{
@@ -50,7 +66,6 @@ spec:
             description: >-
               Jicofo has fewer available replicas than requested for
               more than five minutes.
-
         - alert: JitsiVideobridgeUnavailable
           expr: |
             kube_deployment_status_replicas_available{
@@ -71,7 +86,6 @@ spec:
             description: >-
               JVB has fewer available replicas than requested for more
               than five minutes.
-
         - alert: JitsiProsodyUnavailable
           expr: |
             kube_statefulset_status_replicas_ready{
@@ -92,7 +106,6 @@ spec:
             description: >-
               Prosody has fewer ready replicas than requested for more
               than five minutes.
-
         - alert: JitsiJVBMetricsUnavailable
           expr: |
             absent(
@@ -117,13 +130,12 @@ spec:
             description: >-
               Prometheus has been unable to scrape the JVB exporter for
               more than ten minutes.
-
         - alert: JitsiCredentialSyncFailed
           expr: |
             max by (namespace, name) (
               externalsecret_status_condition{
                 namespace="jitsi",
-                name=~"jitsi-jicofo-auth|jitsi-jvb-auth",
+                name=~"jitsi-jicofo-auth|jitsi-jvb-auth|jitsi-telegram",
                 condition="Ready",
                 status="True"
               }

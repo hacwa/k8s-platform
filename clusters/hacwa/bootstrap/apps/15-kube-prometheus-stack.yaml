@@ -111,6 +111,12 @@ spec:
             retention: 120h
             secrets:
               - alertmanager-smtp
+            alertmanagerConfigSelector:
+              matchLabels:
+                alertmanager-config: jitsi
+            alertmanagerConfigNamespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: jitsi
             persistentVolumeClaimRetentionPolicy:
               whenDeleted: Retain
               whenScaled: Retain
