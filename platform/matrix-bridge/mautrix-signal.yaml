@@ -100,7 +100,7 @@ spec:
 
       containers:
         - name: mautrix-signal
-          image: v26.07
+          image: dock.mau.dev/mautrix/signal:v0.2607.0
           imagePullPolicy: IfNotPresent
           env:
             - name: UID
