@@ -50,7 +50,7 @@ spec:
         
           persistentVolume:
             enabled: true
-            className: rook-ceph-block
+            className: nfs-csi
             size: 5Gi
         
           probes:

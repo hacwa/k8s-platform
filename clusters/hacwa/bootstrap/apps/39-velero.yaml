@@ -7,15 +7,12 @@ metadata:
     argocd.argoproj.io/sync-wave: "39"
 spec:
   project: default
-
   source:
     repoURL: https://vmware-tanzu.github.io/helm-charts
     chart: velero
     targetRevision: 12.1.0
-
     helm:
       releaseName: velero
-
       values: |
         image:
           repository: docker.io/velero/velero
@@ -36,20 +33,19 @@ spec:
 
         backupsEnabled: false
         snapshotsEnabled: false
-
         deployNodeAgent: true
 
         configuration:
           uploaderType: kopia
           features: EnableCSI
           defaultBackupStorageLocation: default
-          defaultSnapshotMoveData: true
+          defaultSnapshotMoveData: false
+          defaultVolumesToFsBackup: true
           defaultItemOperationTimeout: 4h
           dataMoverPrepareTimeout: 30m
 
         nodeAgent:
-          disableHostPath: true
-
+          disableHostPath: false
           tolerations:
             - key: nvidia.com/gpu
               operator: Equal
@@ -58,13 +54,11 @@ spec:
 
         metrics:
           enabled: true
-
           serviceMonitor:
             enabled: true
             autodetect: true
             additionalLabels:
               release: kube-prometheus-stack
-
           nodeAgentPodMonitor:
             enabled: true
             autodetect: true
@@ -81,29 +75,23 @@ spec:
               provider: aws
               default: true
               accessMode: ReadWrite
-
               credential:
                 name: cloud-credentials
                 key: cloud
-
               objectStorage:
                 bucket: velero-hacwa
-
               config:
                 region: minio
                 s3ForcePathStyle: "true"
                 s3Url: http://10.0.6.5:9000
                 checksumAlgorithm: ""
-
   destination:
     server: https://kubernetes.default.svc
     namespace: velero
-
   syncPolicy:
     automated:
       prune: false
       selfHeal: true
-
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true

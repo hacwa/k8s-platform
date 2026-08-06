@@ -96,10 +96,10 @@ spec:
             persistence:
               enabled: true
               journal:
-                storageClassName: rook-ceph-block
+                storageClassName: nfs-csi
                 size: 1Gi
               rrdcached:
-                storageClassName: rook-ceph-block
+                storageClassName: nfs-csi
                 size: 20Gi
 
         mysql:
@@ -118,7 +118,7 @@ spec:
           standalone:
             persistence:
               enabled: true
-              storageClass: rook-ceph-block
+              storageClass: nfs-csi
               size: 20Gi
 
         redis:

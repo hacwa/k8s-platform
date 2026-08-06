@@ -93,7 +93,7 @@ data:
           },
           "targets": [
             {
-              "expr": "count( ( kube_persistentvolumeclaim_status_phase{ phase=\"Pending\" } == 1 ) and on(namespace, persistentvolumeclaim) ( kube_persistentvolumeclaim_info{ storageclass=\"rook-ceph-block\" } == 1 ) )",
+              "expr": "count( ( kube_persistentvolumeclaim_status_phase{ phase=\"Pending\" } == 1 ) and on(namespace, persistentvolumeclaim) ( kube_persistentvolumeclaim_info{ storageclass=\"nfs-csi\" } == 1 ) )",
               "refId": "A"
             }
           ]
@@ -134,7 +134,7 @@ data:
           },
           "targets": [
             {
-              "expr": "count( ( kube_persistentvolumeclaim_status_phase{ phase=\"Lost\" } == 1 ) and on(namespace, persistentvolumeclaim) ( kube_persistentvolumeclaim_info{ storageclass=\"rook-ceph-block\" } == 1 ) )",
+              "expr": "count( ( kube_persistentvolumeclaim_status_phase{ phase=\"Lost\" } == 1 ) and on(namespace, persistentvolumeclaim) ( kube_persistentvolumeclaim_info{ storageclass=\"nfs-csi\" } == 1 ) )",
               "refId": "A"
             }
           ]
@@ -254,7 +254,7 @@ data:
           },
           "targets": [
             {
-              "expr": "( 100 * kubelet_volume_stats_used_bytes / clamp_min( kubelet_volume_stats_capacity_bytes, 1 ) ) * on(namespace, persistentvolumeclaim) group_left(storageclass) kube_persistentvolumeclaim_info{ storageclass=\"rook-ceph-block\" }",
+              "expr": "( 100 * kubelet_volume_stats_used_bytes / clamp_min( kubelet_volume_stats_capacity_bytes, 1 ) ) * on(namespace, persistentvolumeclaim) group_left(storageclass) kube_persistentvolumeclaim_info{ storageclass=\"nfs-csi\" }",
               "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}",
               "refId": "A"
             }
@@ -294,7 +294,7 @@ data:
           },
           "targets": [
             {
-              "expr": "( kubelet_volume_stats_available_bytes / 1024 / 1024 / 1024 ) * on(namespace, persistentvolumeclaim) group_left(storageclass) kube_persistentvolumeclaim_info{ storageclass=\"rook-ceph-block\" }",
+              "expr": "( kubelet_volume_stats_available_bytes / 1024 / 1024 / 1024 ) * on(namespace, persistentvolumeclaim) group_left(storageclass) kube_persistentvolumeclaim_info{ storageclass=\"nfs-csi\" }",
               "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}",
               "refId": "A"
             }
