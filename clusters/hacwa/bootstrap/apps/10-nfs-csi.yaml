@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nfs-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: default
+  source:
+    repoURL: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+    chart: csi-driver-nfs
+    targetRevision: 4.13.4
+    helm:
+      releaseName: csi-driver-nfs
+      values: |
+        controller:
+          replicas: 2
+          defaultOnDeletePolicy: retain
+          enableSnapshotter: false
+
+        externalSnapshotter:
+          enabled: false
+
+        volumeSnapshotClass:
+          create: false
+
+        storageClass:
+          create: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

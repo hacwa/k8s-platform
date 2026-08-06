@@ -64,7 +64,7 @@ spec:
 
         trivy:
           storageClassEnabled: true
-          storageClassName: rook-ceph-block
+          storageClassName: nfs-csi
           storageSize: "10Gi"
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
           ignoreUnfixed: false

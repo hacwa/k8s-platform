@@ -8,9 +8,8 @@ policy:
       # Preserve the schedule without allowing backups to run.
       paused: false
 
-      # This is a one-shot Velero control field.
-      # Velero resets it to false after consuming it, so false is the normal
-      # GitOps steady state.
+      # This is a one-shot Velero control field. Velero resets it to false
+      # after consuming it, so false is the normal GitOps steady state.
       skipImmediately: false
 
       # Standard five-field cron expression.
@@ -31,16 +30,18 @@ policy:
 
       includeClusterResources: true
 
-      # Ephemeral or controller-generated resources that have no useful
-      # restore value.
+      # Ephemeral or controller-generated resources with no restore value.
       excludedResources:
         - events
         - events.events.k8s.io
         - leases.coordination.k8s.io
         - ciliumendpoints.cilium.io
 
-      snapshotVolumes: true
-      snapshotMoveData: true
+      # NFS volumes do not use block-storage snapshots.
+      # Kopia reads each mounted PVC through Velero's node agent.
+      defaultVolumesToFsBackup: true
+      snapshotVolumes: false
+      snapshotMoveData: false
 
       csiSnapshotTimeout: "15m"
       itemOperationTimeout: "8h"
@@ -51,7 +52,6 @@ policy:
 alerts:
   enabled: true
 
-  # Must match the PrometheusRule selector used by kube-prometheus-stack.
   prometheusRuleLabels:
     release: kube-prometheus-stack
 

@@ -11,7 +11,7 @@ service:
 
 persistence:
   enabled: true
-  storageClassName: rook-ceph-block
+  storageClassName: nfs-csi
   accessMode: ReadWriteOnce
   size: 1Gi
 

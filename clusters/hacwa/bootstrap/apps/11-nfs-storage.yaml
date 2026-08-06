@@ -1,19 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: rook-ceph-dashboard-route
+  name: nfs-storage
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "24"
+    argocd.argoproj.io/sync-wave: "21"
 spec:
   project: default
   source:
     repoURL: https://github.com/hacwa/k8s-platform.git
     targetRevision: main
-    path: platform/rook-ceph-dashboard
+    path: platform/nfs-storage
   destination:
     server: https://kubernetes.default.svc
-    namespace: rook-ceph
+    namespace: velero
   syncPolicy:
     automated:
       prune: false

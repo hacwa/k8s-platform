@@ -77,7 +77,7 @@ spec:
             )
             (
               kube_persistentvolumeclaim_info{
-                storageclass="rook-ceph-block"
+                storageclass="nfs-csi"
               } == 1
             )
           for: 15m
@@ -88,7 +88,7 @@ spec:
               Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
               is still pending
             description: >-
-              The rook-ceph-block PVC has not completed provisioning
+              The nfs-csi PVC has not completed provisioning
               within 15 minutes.
 
         - alert: CephRBDPVCLost
@@ -104,7 +104,7 @@ spec:
             )
             (
               kube_persistentvolumeclaim_info{
-                storageclass="rook-ceph-block"
+                storageclass="nfs-csi"
               } == 1
             )
           for: 5m
@@ -115,7 +115,7 @@ spec:
               Ceph PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
               is lost
             description: >-
-              Kubernetes reports the rook-ceph-block PVC in the
+              Kubernetes reports the nfs-csi PVC in the
               Lost phase.
 
         - alert: CephRBDVolumeAttachmentStuck
@@ -160,7 +160,7 @@ spec:
             )
             group_left(storageclass)
             kube_persistentvolumeclaim_info{
-              storageclass="rook-ceph-block"
+              storageclass="nfs-csi"
             }
             > 85
           for: 30m
@@ -192,7 +192,7 @@ spec:
             )
             group_left(storageclass)
             kube_persistentvolumeclaim_info{
-              storageclass="rook-ceph-block"
+              storageclass="nfs-csi"
             }
             > 95
           for: 15m
