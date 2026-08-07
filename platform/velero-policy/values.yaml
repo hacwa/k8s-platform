@@ -24,9 +24,16 @@ policy:
       # An empty list means every namespace is included.
       includedNamespaces: []
 
-      # Velero's own operational resources are excluded.
+      # These namespaces contain rebuildable platform/runtime state rather than
+      # persistent workload data. Excluding them also prevents Velero FSB from
+      # trying to back up controller-local Cilium and MetalLB runtime volumes.
       excludedNamespaces:
         - velero
+        - kube-system
+        - metallb-system
+        - argocd
+        - gitlab-runner
+        - jitsi
 
       includeClusterResources: true
 
@@ -70,6 +77,9 @@ alerts:
   counterWindow: "1h"
 
 dashboard:
-  enabled: true
+  enabled: true "5m"
+  staleFor: "15m"
+
+  # Counter-based failure alerts look for new failures during this
   namespace: monitoring
   refresh: "30s"

@@ -23,7 +23,7 @@ spec:
           scanJobsConcurrentLimit: 1
           scanNodeCollectorLimit: 1
           scanJobTimeout: "10m"
-          scanJobTTL: "10m"
+          scanJobTTL: "1s"
           scanSecretTTL: "10m"
           scannerReportTTL: "24h"
           cacheReportTTL: "120h"
