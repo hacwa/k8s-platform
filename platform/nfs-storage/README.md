@@ -5,7 +5,7 @@ This directory defines the platform's default Kubernetes StorageClass.
 ## Backend
 
 - Server: `10.0.6.4`
-- Export: `/var/nfs/shared/k8s_sc`
+- Export: `/var/nfs/shared/k8s_sc8`
 - Provisioner: `nfs.csi.k8s.io`
 - StorageClass: `nfs-csi`
 - Reclaim policy: `Retain`
