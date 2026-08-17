@@ -74,13 +74,23 @@ spec:
         - alert: DeschedulerCronJobDelayed
           expr: |
             (
-              time()
-              -
-              kube_cronjob_next_schedule_time{
-                namespace="kube-system",
-                cronjob="descheduler"
-              }
-              > 900
+              (
+                time()
+                -
+                kube_cronjob_next_schedule_time{
+                  namespace="kube-system",
+                  cronjob="descheduler"
+                }
+              )
+              >
+              on (namespace, cronjob)
+              (
+                kube_cronjob_spec_starting_deadline_seconds{
+                  namespace="kube-system",
+                  cronjob="descheduler"
+                }
+                + 300
+              )
             )
             and on (namespace, cronjob)
             (
@@ -96,8 +106,8 @@ spec:
           annotations:
             summary: Descheduler CronJob missed its schedule
             description: >-
-              The Descheduler CronJob is more than fifteen minutes
-              beyond its expected next execution time.
+              The Descheduler CronJob is beyond its configured
+              starting deadline plus a five-minute grace period.
 
         - alert: DeschedulerNoSuccessfulRun
           expr: |
@@ -108,7 +118,7 @@ spec:
                 namespace="kube-system",
                 cronjob="descheduler"
               }
-              > 25200
+              > 46800
             )
             or
             (
@@ -119,7 +129,7 @@ spec:
                   namespace="kube-system",
                   cronjob="descheduler"
                 }
-                > 25200
+                > 46800
               )
               unless on (namespace, cronjob)
               kube_cronjob_status_last_successful_time{
@@ -135,7 +145,7 @@ spec:
             summary: Descheduler has not completed successfully
             description: >-
               Descheduler has not recorded a successful run during
-              the last seven hours.
+              the last thirteen hours.
 
     - name: descheduler.evictions
       rules:
