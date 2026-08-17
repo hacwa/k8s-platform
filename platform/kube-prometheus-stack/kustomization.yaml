@@ -10,21 +10,12 @@ resources:
   - etcd-scrapeconfig.yaml
   - nvidia-gpu-dashboard.yaml
   - nvidia-gpu-rules.yaml
-  - ceph-csi-rules.yaml
-  - ceph-csi-dashboard.yaml
   - platform-endpoint-probes.yaml
   - platform-endpoint-rules.yaml
   - platform-endpoint-dashboard.yaml
   - plex-dashboard.yaml
 
 configMapGenerator:
-  - name: ceph-grafana-dashboards
-    namespace: monitoring
-    files:
-      - ceph-cluster.json=dashboards/ceph/ceph-cluster.json
-      - ceph-osd-single.json=dashboards/ceph/ceph-osd-single.json
-      - ceph-pools.json=dashboards/ceph/ceph-pools.json
-
   - name: proxmox-pve-grafana-dashboards
     namespace: monitoring
     files:

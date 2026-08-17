@@ -41,7 +41,6 @@ spec:
       static:
         - https://alertmanager.hacwa.internal/
         - https://prometheus.hacwa.internal/
-        - https://ceph.hacwa.internal/
         - https://ollama.hacwa.internal/api/version
       labels:
         probe_group: platform-internal
