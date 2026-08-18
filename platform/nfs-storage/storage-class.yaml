@@ -3,6 +3,9 @@ kind: StorageClass
 metadata:
   name: nfs-csi
   annotations:
+    opencost.io/storage-hourly-cost: "0.0001271233"
+    hacwa.co.uk/emulated-storage-tier: "aws-ebs-gp3"
+    hacwa.co.uk/emulated-aws-region: "eu-west-2"
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: nfs.csi.k8s.io
 parameters:
