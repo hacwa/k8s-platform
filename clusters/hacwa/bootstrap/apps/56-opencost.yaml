@@ -42,23 +42,26 @@ spec:
               enabled: true
               hostnames:
                 - opencost.hacwa.co.uk
+
               parentRefs:
                 - group: gateway.networking.k8s.io
                   kind: Gateway
                   name: external-gateway
                   namespace: platform-gateway
                   sectionName: https
+
               rules:
-                - backendRefs:
+                - matches:
+                    - path:
+                        type: PathPrefix
+                        value: /
+                  backendRefs:
                     - group: ""
                       kind: Service
                       name: opencost
                       port: 9090
                       weight: 1
-                  matches:
-                    - path:
-                        type: PathPrefix
-                        value: /
+
 
           mcp:
             enabled: false
