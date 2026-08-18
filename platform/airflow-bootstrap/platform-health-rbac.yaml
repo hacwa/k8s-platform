@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: airflow-platform-health-reader
+rules:
+  - nonResourceURLs:
+      - /version
+    verbs:
+      - get
+
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    verbs:
+      - get
+      - list
+
+  - apiGroups:
+      - velero.io
+    resources:
+      - backups
+      - backupstoragelocations
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: airflow-platform-health-reader
+subjects:
+  - kind: ServiceAccount
+    name: airflow-scheduler
+    namespace: airflow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: airflow-platform-health-reader

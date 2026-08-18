@@ -21,6 +21,7 @@ spec:
         defaultAirflowTag: "3.2.2-python3.12"
 
         executor: LocalExecutor
+        allowPodLaunching: false
 
         postgresql:
           enabled: false
@@ -57,6 +58,12 @@ spec:
           applyCustomEnv: false
           jobAnnotations:
             argocd.argoproj.io/hook: Sync
+
+        scheduler:
+          serviceAccount:
+            create: false
+            name: airflow-scheduler
+            automountServiceAccountToken: true
 
         apiServer:
           enabled: true
@@ -141,7 +148,14 @@ spec:
             enabled: false
 
           gitSync:
-            enabled: false
+            enabled: true
+            repo: https://github.com/hacwa/k8s-platform.git
+            branch: main
+            ref: main
+            rev: HEAD
+            depth: 1
+            subPath: platform/airflow-dags
+            period: 30s
 
         logs:
           persistence:
