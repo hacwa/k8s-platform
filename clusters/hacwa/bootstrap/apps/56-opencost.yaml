@@ -17,6 +17,10 @@ spec:
       releaseName: opencost
       values: |
         opencost:
+          metrics:
+            serviceMonitor:
+              enabled: true
+
           prometheus:
             internal:
               enabled: true
