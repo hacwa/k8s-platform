@@ -8,5 +8,4 @@ resources:
   - postgresql-pvc.yaml
   - postgresql-service.yaml
   - postgresql-statefulset.yaml
-  - scheduler-serviceaccount.yaml
   - platform-health-rbac.yaml

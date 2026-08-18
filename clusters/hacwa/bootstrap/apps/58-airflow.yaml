@@ -61,7 +61,7 @@ spec:
 
         scheduler:
           serviceAccount:
-            create: false
+            create: true
             name: airflow-scheduler
             automountServiceAccountToken: true
 
