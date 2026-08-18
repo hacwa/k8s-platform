@@ -33,7 +33,7 @@ spec:
               CONFIG_PATH: /tmp
 
             startupProbe:
-              failureThreshold: 120
+              failureThreshold: 360
 
           ui:
             enabled: true
