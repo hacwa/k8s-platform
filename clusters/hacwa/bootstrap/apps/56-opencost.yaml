@@ -35,6 +35,7 @@ spec:
             extraEnv:
               CLOUD_PROVIDER: AWS
               CONFIG_PATH: /tmp
+              AWS_PRICING_URL: "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/eu-west-2/index.json"
 
             startupProbe:
               failureThreshold: 360
