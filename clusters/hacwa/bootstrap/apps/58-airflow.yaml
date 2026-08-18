@@ -1,0 +1,166 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: airflow
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "58"
+spec:
+  project: default
+
+  source:
+    repoURL: https://airflow.apache.org
+    chart: airflow
+    targetRevision: 1.22.0
+
+    helm:
+      releaseName: airflow
+      values: |
+        airflowVersion: "3.2.2"
+        defaultAirflowRepository: apache/airflow
+        defaultAirflowTag: "3.2.2-python3.12"
+
+        executor: LocalExecutor
+
+        postgresql:
+          enabled: false
+
+        redis:
+          enabled: false
+
+        data:
+          metadataSecretName: airflow-metadata
+
+        fernetKeySecretName: airflow-runtime-secrets
+        apiSecretKeySecretName: airflow-runtime-secrets
+        jwtSecretName: airflow-runtime-secrets
+
+        config:
+          core:
+            auth_manager: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+            load_examples: "False"
+
+          api:
+            base_url: https://airflow.hacwa.co.uk
+
+          fab:
+            enable_proxy_fix: "True"
+
+        createUserJob:
+          enabled: false
+          useHelmHooks: false
+          applyCustomEnv: false
+
+        migrateDatabaseJob:
+          enabled: true
+          useHelmHooks: false
+          applyCustomEnv: false
+          jobAnnotations:
+            argocd.argoproj.io/hook: Sync
+
+        apiServer:
+          enabled: true
+          replicas: 1
+
+          service:
+            type: ClusterIP
+
+          env:
+            - name: CLIENT_ID
+              value: airflow
+
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-runtime-secrets
+                  key: client-secret
+
+            - name: OIDC_ISSUER
+              value: https://keycloak.hacwa.co.uk/realms/master
+
+          apiServerConfig: |-
+            import os
+
+            from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+            from flask_appbuilder.const import AUTH_OAUTH
+
+            AUTH_TYPE = AUTH_OAUTH
+            AUTH_USER_REGISTRATION = True
+            AUTH_ROLES_SYNC_AT_LOGIN = True
+            AUTH_USER_REGISTRATION_ROLE = "Viewer"
+
+            AUTH_ROLES_MAPPING = {
+                "AirflowAdmins": ["Admin"],
+            }
+
+            CLIENT_ID = os.environ["CLIENT_ID"]
+            CLIENT_SECRET = os.environ["CLIENT_SECRET"]
+            OIDC_ISSUER = os.environ["OIDC_ISSUER"]
+            OIDC_BASE_URL = f"{OIDC_ISSUER}/protocol/openid-connect"
+
+            OAUTH_PROVIDERS = [
+                {
+                    "name": "keycloak",
+                    "icon": "fa-key",
+                    "token_key": "access_token",
+                    "remote_app": {
+                        "client_id": CLIENT_ID,
+                        "client_secret": CLIENT_SECRET,
+                        "server_metadata_url": f"{OIDC_ISSUER}/.well-known/openid-configuration",
+                        "api_base_url": f"{OIDC_BASE_URL}/",
+                        "access_token_url": f"{OIDC_BASE_URL}/token",
+                        "authorize_url": f"{OIDC_BASE_URL}/auth",
+                        "request_token_url": None,
+                        "client_kwargs": {
+                            "scope": "openid email profile",
+                        },
+                    },
+                },
+            ]
+
+            class KeycloakSecurityManager(FabAirflowSecurityManagerOverride):
+                def get_oauth_user_info(self, provider, response):
+                    if provider != "keycloak":
+                        return {}
+
+                    remote_app = self.appbuilder.sm.oauth_remotes[provider]
+                    userinfo = remote_app.get("userinfo").json()
+
+                    return {
+                        "username": userinfo.get("preferred_username"),
+                        "email": userinfo.get("email"),
+                        "first_name": userinfo.get("given_name", ""),
+                        "last_name": userinfo.get("family_name", ""),
+                        "role_keys": userinfo.get("groups", []),
+                    }
+
+            SECURITY_MANAGER_CLASS = KeycloakSecurityManager
+
+        dags:
+          persistence:
+            enabled: false
+
+          gitSync:
+            enabled: false
+
+        logs:
+          persistence:
+            enabled: true
+            storageClassName: nfs-csi
+            size: 20Gi
+            annotations:
+              argocd.argoproj.io/sync-options: Prune=false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: airflow
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
