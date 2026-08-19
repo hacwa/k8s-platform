@@ -24,6 +24,9 @@ spec:
               enabled: true
               skipSanityChecks: true
 
+        kubecostProductConfigs:
+          currencyCode: GBP
+
         aggregator:
           aggregatorDbStorage:
             storageClass: proxmox-block
