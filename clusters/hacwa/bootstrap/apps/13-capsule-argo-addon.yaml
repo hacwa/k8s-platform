@@ -24,7 +24,7 @@ spec:
           spec:
             force: true
             decouple: true
-            readonly: false
+            readonly: true
             allowRepositoryCreation: false
             argo:
               namespace: argocd
