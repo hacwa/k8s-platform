@@ -10,6 +10,8 @@ data:
   admin.enabled: "true"
   url: https://argocd.hacwa.co.uk
   users.session.duration: "24h"
+  application.sync.impersonation.enforced: "false"
+  application.sync.impersonation.enabled: "true"
 
   resource.customizations.health.argoproj.io_Application: |
     hs = {}

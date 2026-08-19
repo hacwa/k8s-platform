@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: capsule
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/projectcapsule/charts
+    chart: capsule
+    targetRevision: 0.13.10
+    helm:
+      releaseName: capsule
+      valuesObject:
+        crds:
+          install: true
+        manager:
+          options:
+            annotations:
+              argocd.argoproj.io/sync-options: Validate=false,SkipDryRunOnMissingResource=true
+            capsuleConfiguration: default
+            users:
+              - kind: Group
+                name: CapsuleTenantRhi
+              - kind: Group
+                name: system:serviceaccounts:capsule-argo-system
+        proxy:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: capsule-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

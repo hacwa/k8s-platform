@@ -1,0 +1,44 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: ArgoTranslator
+metadata:
+  name: rhi
+spec:
+  selector:
+    matchLabels:
+      hacwa.co.uk/argocd-tenant: rhi
+
+  roles:
+    - name: tenant-admin
+      clusterRoles:
+        - admin
+      owner: false
+      policies:
+        - resource: applications
+          action:
+            - get
+            - create
+            - update
+            - delete
+            - sync
+            - action
+            - override
+          verb: allow
+          path: "*"
+
+        - resource: logs
+          action:
+            - get
+          verb: allow
+          path: "*"
+
+  settings:
+    structured:
+      spec:
+        description: "Capsule tenant project for rhi"
+
+        sourceRepos:
+          - "*"
+
+        destinations:
+          - server: https://kubernetes.default.svc
+            namespace: "rhi-*"

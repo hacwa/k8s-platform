@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: capsule-argo-addon
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "14"
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/peak-scale/charts
+    chart: capsule-argo-addon
+    targetRevision: 0.7.5
+    helm:
+      releaseName: capsule-argo-addon
+      valuesObject:
+        proxy:
+          enabled: false
+        monitoring:
+          enabled: false
+        config:
+          create: true
+          name: default
+          spec:
+            force: true
+            decouple: true
+            readonly: false
+            allowRepositoryCreation: false
+            argo:
+              namespace: argocd
+              rbacConfigMap: argocd-rbac-cm
+              destination: https://kubernetes.default.svc
+              destinationServiceAccounts: true
+              serviceAccountNamespace: capsule-argo-system
+              serviceAccountClusterRoles:
+                - admin
+                - capsule-namespace-deleter
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: capsule-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true

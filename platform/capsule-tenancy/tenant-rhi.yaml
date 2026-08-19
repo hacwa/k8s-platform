@@ -1,0 +1,18 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: Tenant
+metadata:
+  name: rhi
+  labels:
+    hacwa.co.uk/argocd-tenant: rhi
+spec:
+  owners:
+    - name: CapsuleTenantRhi
+      kind: Group
+
+  forceTenantPrefix: true
+
+  namespaceOptions:
+    quota: 2
+
+  nodeSelector:
+    kubernetes.io/hostname: k8s-worker-03
