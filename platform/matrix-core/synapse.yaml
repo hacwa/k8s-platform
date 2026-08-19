@@ -15,6 +15,10 @@ spec:
       port: 8008
       targetPort: http
       protocol: TCP
+    - name: metrics
+      port: 9000
+      targetPort: metrics
+      protocol: TCP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -207,6 +211,9 @@ spec:
           ports:
             - name: http
               containerPort: 8008
+              protocol: TCP
+            - name: metrics
+              containerPort: 9000
               protocol: TCP
           startupProbe:
             httpGet:
