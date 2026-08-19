@@ -14,6 +14,13 @@ resources:
   - platform-endpoint-rules.yaml
   - platform-endpoint-dashboard.yaml
   - plex-dashboard.yaml
+  - airflow-dashboard.yaml
+  - chartmuseum-dashboard.yaml
+  - trivy-operator-dashboard.yaml
+  - opencost-dashboard.yaml
+  - dependency-track-dashboard.yaml
+  - kubecost-dashboard.yaml
+  - matrix-synapse-dashboard.yaml
 
 configMapGenerator:
   - name: proxmox-pve-grafana-dashboards
