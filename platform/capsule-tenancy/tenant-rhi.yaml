@@ -8,8 +8,15 @@ spec:
   owners:
     - name: CapsuleTenantRhi
       kind: Group
+      clusterRoles:
+        - admin
+        - capsule-namespace-deleter
+
     - name: system:serviceaccount:capsule-argo-system:rhi
       kind: ServiceAccount
+      clusterRoles:
+        - admin
+        - capsule-namespace-deleter
 
   forceTenantPrefix: true
 
