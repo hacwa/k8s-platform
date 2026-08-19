@@ -8,6 +8,8 @@ spec:
   owners:
     - name: CapsuleTenantRhi
       kind: Group
+    - name: system:serviceaccount:capsule-argo-system:rhi
+      kind: ServiceAccount
 
   forceTenantPrefix: true
 
