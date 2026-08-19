@@ -52,7 +52,7 @@ spec:
           enabled: false
 
         forecasting:
-          enabled: false
+          enabled: true
 
         networkCosts:
           enabled: false
