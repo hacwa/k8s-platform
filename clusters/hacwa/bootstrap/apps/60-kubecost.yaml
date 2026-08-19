@@ -1,0 +1,95 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubecost
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "60"
+spec:
+  project: default
+
+  source:
+    repoURL: https://kubecost.github.io/kubecost/
+    chart: kubecost
+    targetRevision: 3.2.3
+
+    helm:
+      releaseName: kubecost
+      values: |
+        global:
+          clusterId: eks-cost-lab
+          defaultStorageClass: proxmox-block
+          platforms:
+            cicd:
+              enabled: true
+              skipSanityChecks: true
+
+        aggregator:
+          aggregatorDbStorage:
+            storageClass: proxmox-block
+            storageRequest: 128Gi
+          persistentConfigsStorage:
+            storageClass: proxmox-block
+            storageRequest: 1Gi
+          nodeSelector:
+            hacwa.co.uk/proxmox-csi: "true"
+
+        localStore:
+          persistentVolume:
+            enabled: true
+            size: 32Gi
+            storageClass: proxmox-block
+          nodeSelector:
+            hacwa.co.uk/proxmox-csi: "true"
+
+        clusterController:
+          enabled: false
+
+        cloudCost:
+          enabled: false
+
+        forecasting:
+          enabled: false
+
+        networkCosts:
+          enabled: false
+
+        extraObjects:
+          - apiVersion: gateway.networking.k8s.io/v1
+            kind: HTTPRoute
+            metadata:
+              name: kubecost
+              namespace: kubecost
+            spec:
+              parentRefs:
+                - group: gateway.networking.k8s.io
+                  kind: Gateway
+                  name: internal-gateway
+                  namespace: platform-gateway
+                  sectionName: https-internal-wildcard
+              hostnames:
+                - kubecost.hacwa.internal
+              rules:
+                - matches:
+                    - path:
+                        type: PathPrefix
+                        value: /
+                  backendRefs:
+                    - group: ""
+                      kind: Service
+                      name: kubecost-frontend
+                      port: 9090
+                      weight: 1
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubecost
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
