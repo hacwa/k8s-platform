@@ -44,7 +44,7 @@ policy:
         - leases.coordination.k8s.io
         - ciliumendpoints.cilium.io
 
-      # NFS volumes do not use block-storage snapshots.
+      # Filesystem Backup works for mounted NFS and filesystem-backed block PVCs.
       # Kopia reads each mounted PVC through Velero's node agent.
       defaultVolumesToFsBackup: true
       snapshotVolumes: false
@@ -77,9 +77,6 @@ alerts:
   counterWindow: "1h"
 
 dashboard:
-  enabled: true "5m"
-  staleFor: "15m"
-
-  # Counter-based failure alerts look for new failures during this
+  enabled: true
   namespace: monitoring
   refresh: "30s"
