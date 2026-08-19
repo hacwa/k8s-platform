@@ -6,6 +6,7 @@ generatorOptions:
 
 resources:
   - synapse.yaml
+  - servicemonitor.yaml
   - mas.yaml
   - element.yaml
   - livekit.yaml

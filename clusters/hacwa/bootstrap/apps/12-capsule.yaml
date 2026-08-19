@@ -26,6 +26,20 @@ spec:
                 name: CapsuleTenantRhi
               - kind: Group
                 name: system:serviceaccounts:capsule-argo-system
+        monitoring:
+          dashboards:
+            enabled: true
+            namespace: monitoring
+            labels:
+              grafana_dashboard: "1"
+          serviceMonitor:
+            enabled: true
+            namespace: monitoring
+            labels:
+              release: kube-prometheus-stack
+            endpoint:
+              interval: "30s"
+              scrapeTimeout: "10s"
         proxy:
           enabled: false
   destination:

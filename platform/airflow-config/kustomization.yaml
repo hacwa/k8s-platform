@@ -5,3 +5,4 @@ namespace: airflow
 
 resources:
   - httproute.yaml
+  - servicemonitor.yaml
