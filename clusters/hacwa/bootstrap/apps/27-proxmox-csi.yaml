@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: proxmox-csi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "27"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sergelogvinov/proxmox-csi-plugin.git
+    targetRevision: v0.20.0
+    path: charts/proxmox-csi-plugin
+    helm:
+      releaseName: proxmox-csi
+      values: |
+        createNamespace: false
+
+        existingConfigSecret: proxmox-csi-plugin
+        existingConfigSecretKey: config.yaml
+
+        nodeSelector:
+          hacwa.co.uk/proxmox-csi: "true"
+
+        node:
+          nodeSelector:
+            hacwa.co.uk/proxmox-csi: "true"
+
+        storageClass:
+          - name: proxmox-block
+            storage: k8s-01
+            volumeBindingMode: WaitForFirstConsumer
+            reclaimPolicy: Retain
+            fstype: ext4
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: csi-proxmox
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
