@@ -136,6 +136,28 @@ spec:
 
           startTimeout: 600
 
+          profileList:
+            - display_name: CPU Notebook
+              description: Standard CPU-only JupyterLab environment.
+              slug: cpu
+              default: true
+
+            - display_name: Shared GPU Notebook
+              description: JupyterLab with one time-sliced NVIDIA GPU allocation.
+              slug: gpu
+              kubespawner_override:
+                extra_resource_limits:
+                  nvidia.com/gpu: "1"
+
+                node_selector:
+                  node-role.kubernetes.io/gpu: ""
+
+                tolerations:
+                  - key: nvidia.com/gpu
+                    operator: Equal
+                    value: "true"
+                    effect: NoSchedule
+
         scheduling:
           userScheduler:
             enabled: true
