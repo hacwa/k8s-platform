@@ -1,0 +1,16 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: jupyterhub-hub-kube-apiserver
+  namespace: jupyterhub
+spec:
+  description: Allow the JupyterHub Hub to access the Kubernetes API for KubeSpawner
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: hub
+      release: jupyterhub
+
+  egress:
+    - toEntities:
+        - kube-apiserver
