@@ -44,6 +44,12 @@ spec:
               release: kube-prometheus-stack
 
         finopsagent:
+          extraEnvVars:
+            - name: CLOUD_PROVIDER
+              value: AWS
+            - name: AWS_PRICING_URL
+              value: "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/eu-west-2/index.json"
+
           metrics:
             enabled: true
             serviceMonitor:
