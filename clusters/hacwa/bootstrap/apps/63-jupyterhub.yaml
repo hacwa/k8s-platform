@@ -1,0 +1,136 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jupyterhub
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "63"
+spec:
+  project: default
+
+  source:
+    repoURL: https://jupyterhub.github.io/helm-chart/
+    chart: jupyterhub
+    targetRevision: 4.4.1
+
+    helm:
+      releaseName: jupyterhub
+
+      values: |
+        hub:
+          authenticatePrometheus: false
+
+          db:
+            type: sqlite-pvc
+            pvc:
+              storageClassName: nfs-csi
+              accessModes:
+                - ReadWriteOnce
+              storage: 5Gi
+
+          config:
+            JupyterHub:
+              authenticator_class: dummy
+              admin_access: true
+
+            Authenticator:
+              allowed_users:
+                - hacwa
+              admin_users:
+                - hacwa
+
+          extraEnv:
+            JUPYTERHUB_DUMMY_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: jupyterhub-auth
+                  key: password
+
+          extraConfig:
+            00-dummy-password: |
+              import os
+              c.DummyAuthenticator.password = os.environ[
+                  "JUPYTERHUB_DUMMY_PASSWORD"
+              ]
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+        proxy:
+          service:
+            type: ClusterIP
+
+          https:
+            enabled: false
+
+          chp:
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+        singleuser:
+          storage:
+            type: static
+
+            static:
+              pvcName: jupyterhub-user-home
+              subPath: "{username}"
+
+            homeMountPath: /home/jovyan
+
+          cloudMetadata:
+            blockWithIptables: false
+
+          networkPolicy:
+            enabled: true
+
+            egressAllowRules:
+              cloudMetadataServer: false
+              dnsPortsCloudMetadataServer: true
+              dnsPortsKubeSystemNamespace: true
+              dnsPortsPrivateIPs: true
+              nonPrivateIPs: true
+              privateIPs: true
+
+          cpu:
+            guarantee: 0.2
+            limit: 2
+
+          memory:
+            guarantee: 512M
+            limit: 4G
+
+          startTimeout: 600
+
+        scheduling:
+          userScheduler:
+            enabled: true
+            replicas: 2
+
+        cull:
+          enabled: true
+          users: false
+          timeout: 3600
+          every: 600
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jupyterhub
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

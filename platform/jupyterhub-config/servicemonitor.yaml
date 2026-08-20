@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jupyterhub
+  namespace: jupyterhub
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      component: hub
+      app: jupyterhub
+      release: jupyterhub
+
+  endpoints:
+    - port: hub
+      path: /hub/metrics
+      interval: 30s
+      scrapeTimeout: 10s
