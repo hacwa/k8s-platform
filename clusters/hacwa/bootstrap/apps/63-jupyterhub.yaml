@@ -142,21 +142,26 @@ spec:
               slug: cpu
               default: true
 
+
             - display_name: Shared GPU Notebook
-              description: JupyterLab with one time-sliced NVIDIA GPU allocation.
+              description: CUDA-enabled PyTorch JupyterLab with one time-sliced NVIDIA GPU allocation.
               slug: gpu
               kubespawner_override:
+                image: quay.io/jupyter/pytorch-notebook:cuda13-latest
+            
                 extra_resource_limits:
                   nvidia.com/gpu: "1"
-
+            
                 node_selector:
                   node-role.kubernetes.io/gpu: ""
-
+            
                 tolerations:
                   - key: nvidia.com/gpu
                     operator: Equal
                     value: "true"
                     effect: NoSchedule
+
+          
 
         scheduling:
           userScheduler:
