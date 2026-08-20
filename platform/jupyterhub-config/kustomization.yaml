@@ -6,3 +6,4 @@ resources:
   - user-home-pvc.yaml
   - servicemonitor.yaml
   - dashboard.yaml
+  - cilium-kube-apiserver-egress.yaml
