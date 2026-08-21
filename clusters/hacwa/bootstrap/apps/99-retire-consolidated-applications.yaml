@@ -64,6 +64,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "99"
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
 spec:
   backoffLimit: 2
   activeDeadlineSeconds: 900
@@ -181,6 +182,130 @@ spec:
                       f"applications/{name}"
                   )
 
+              def ordinary_ready(app):
+                  status = app.get("status", {})
+
+                  sync = status.get(
+                      "sync",
+                      {},
+                  ).get("status")
+
+                  health = status.get(
+                      "health",
+                      {},
+                  ).get("status")
+
+                  return (
+                      sync == "Synced"
+                      and health == "Healthy"
+                  )
+
+              metallb_handover_resources = {
+                  (
+                      "ConfigMap",
+                      "monitoring",
+                      "metallb-grafana-dashboard",
+                  ),
+                  (
+                      "IPAddressPool",
+                      "metallb-system",
+                      "auto-pool",
+                  ),
+                  (
+                      "IPAddressPool",
+                      "metallb-system",
+                      "manual-pool",
+                  ),
+                  (
+                      "L2Advertisement",
+                      "metallb-system",
+                      "auto-pool-l2",
+                  ),
+                  (
+                      "L2Advertisement",
+                      "metallb-system",
+                      "manual-pool-l2",
+                  ),
+              }
+
+              def metallb_handover_ready(app):
+                  status = app.get("status", {})
+
+                  sync = status.get(
+                      "sync",
+                      {},
+                  ).get("status")
+
+                  health = status.get(
+                      "health",
+                      {},
+                  ).get("status")
+
+                  operation_phase = status.get(
+                      "operationState",
+                      {},
+                  ).get("phase")
+
+                  if not (
+                      sync == "OutOfSync"
+                      and health == "Healthy"
+                      and operation_phase == "Succeeded"
+                  ):
+                      return False
+
+                  out_of_sync = set()
+
+                  for resource in status.get(
+                      "resources",
+                      [],
+                  ):
+                      if (
+                          resource.get("status")
+                          != "Synced"
+                      ):
+                          out_of_sync.add(
+                              (
+                                  resource.get("kind", ""),
+                                  resource.get(
+                                      "namespace",
+                                      "",
+                                  ),
+                                  resource.get("name", ""),
+                              )
+                          )
+
+                  if (
+                      out_of_sync
+                      != metallb_handover_resources
+                  ):
+                      return False
+
+                  conditions = (
+                      status.get("conditions")
+                      or []
+                  )
+
+                  if not conditions:
+                      return False
+
+                  for condition in conditions:
+                      if (
+                          condition.get("type")
+                          != "SharedResourceWarning"
+                      ):
+                          return False
+
+                      if (
+                          "metallb-config"
+                          not in condition.get(
+                              "message",
+                              "",
+                          )
+                      ):
+                          return False
+
+                  return True
+
               replacements = {
                   "metallb",
                   "kubecost",
@@ -203,24 +328,24 @@ spec:
                       if app is None:
                           continue
 
-                      status = app.get("status", {})
-
-                      sync = status.get(
-                          "sync",
-                          {},
-                      ).get("status")
-
-                      health = status.get(
-                          "health",
-                          {},
-                      ).get("status")
-
-                      if (
-                          sync == "Synced"
-                          and health == "Healthy"
-                      ):
+                      if ordinary_ready(app):
                           print(
                               f"replacement ready: {name}",
+                              flush=True,
+                          )
+                          pending.remove(name)
+                          continue
+
+                      if (
+                          name == "metallb"
+                          and metallb_handover_ready(app)
+                      ):
+                          print(
+                              "replacement ready for "
+                              "handover: metallb "
+                              "(only expected shared "
+                              "metallb-config resources "
+                              "remain)",
                               flush=True,
                           )
                           pending.remove(name)
@@ -236,7 +361,7 @@ spec:
               if pending:
                   raise SystemExit(
                       "replacement Applications did not "
-                      "become Synced/Healthy: "
+                      "reach a safe migration state: "
                       + ", ".join(sorted(pending))
                   )
 
@@ -297,3 +422,54 @@ spec:
                       f"retired legacy Application: {name}",
                       flush=True,
                   )
+
+              print(
+                  "waiting for replacement Applications "
+                  "to converge after handover",
+                  flush=True,
+              )
+
+              deadline = time.monotonic() + 300
+              pending = set(replacements)
+
+              while (
+                  pending
+                  and time.monotonic() < deadline
+              ):
+                  for name in sorted(tuple(pending)):
+                      app = request(
+                          "GET",
+                          application_path(name),
+                      )
+
+                      if (
+                          app is not None
+                          and ordinary_ready(app)
+                      ):
+                          print(
+                              f"replacement converged: {name}",
+                              flush=True,
+                          )
+                          pending.remove(name)
+
+                  if pending:
+                      print(
+                          "waiting for final convergence: "
+                          + ", ".join(sorted(pending)),
+                          flush=True,
+                      )
+                      time.sleep(10)
+
+              if pending:
+                  raise SystemExit(
+                      "replacement Applications did not "
+                      "become Synced/Healthy after "
+                      "legacy retirement: "
+                      + ", ".join(sorted(pending))
+                  )
+
+              print(
+                  "consolidated Application migration "
+                  "completed successfully",
+                  flush=True,
+              )
