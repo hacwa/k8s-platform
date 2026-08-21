@@ -27,6 +27,16 @@ spec:
           hub:
             authenticatePrometheus: false
 
+            networkPolicy:
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: monitoring
+                  ports:
+                    - protocol: TCP
+                      port: http
+
             db:
               type: sqlite-pvc
               pvc:
