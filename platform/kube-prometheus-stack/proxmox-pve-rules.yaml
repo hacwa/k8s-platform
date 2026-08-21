@@ -166,12 +166,23 @@ spec:
               utilisation for more than 15 minutes.
 
         - alert: ProxmoxGuestsNotBackedUp
-          expr: pve_not_backed_up_total{job="proxmox-pve"} > 0
+          expr: >-
+            (
+              pve_not_backed_up_info{
+                job="proxmox-pve"
+              } == 1
+            )
+            * on(id) group_left(name,node,tags)
+            pve_guest_info{
+              job="proxmox-pve",
+              tags=~"(^|.*;)backup-required(;.*|$)"
+            }
           for: 1h
           labels:
             severity: warning
           annotations:
-            summary: Proxmox guests are not covered by backup jobs
+            summary: Required Proxmox guest is not covered by backup jobs
             description: >-
-              {{ $value | humanize }} Proxmox guests are not covered
-              by a configured Proxmox backup job.
+              Guest {{ $labels.name }} ({{ $labels.id }}) on
+              {{ $labels.node }} is tagged backup-required but is not
+              covered by a configured Proxmox backup job.
