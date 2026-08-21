@@ -75,6 +75,22 @@ spec:
                 - receiver: "null"
                   matchers:
                     - alertname = "Watchdog"
+
+                - receiver: email-notifications
+                  matchers:
+                    - alertname = "ProxmoxStorageUnavailable"
+                    - id =~ "storage/[^/]+/PBS"
+                  mute_time_intervals:
+                    - pbs-powered-off
+
+            time_intervals:
+              - name: pbs-powered-off
+                time_intervals:
+                  - times:
+                      - start_time: "08:00"
+                        end_time: "16:45"
+                    location: Europe/London
+
             receivers:
               - name: "null"
               - name: email-notifications
