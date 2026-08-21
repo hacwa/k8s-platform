@@ -49,6 +49,9 @@ spec:
                 release: kube-prometheus-stack
 
           finopsagent:
+            podAnnotations:
+              backup.velero.io/backup-volumes-excludes: var-configs-empty-dir
+
             extraEnvVars:
               - name: CLOUD_PROVIDER
                 value: AWS
