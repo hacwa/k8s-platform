@@ -7,3 +7,4 @@ resources:
   - servicemonitor.yaml
   - dashboard.yaml
   - cilium-kube-apiserver-egress.yaml
+  - prometheus-ingress.yaml
