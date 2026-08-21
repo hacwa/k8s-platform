@@ -27,16 +27,6 @@ spec:
           hub:
             authenticatePrometheus: false
 
-            networkPolicy:
-              ingress:
-                - from:
-                    - namespaceSelector:
-                        matchLabels:
-                          kubernetes.io/metadata.name: monitoring
-                  ports:
-                    - protocol: TCP
-                      port: http
-
             db:
               type: sqlite-pvc
               pvc:
@@ -164,6 +154,9 @@ spec:
                 slug: gpu
                 kubespawner_override:
                   image: quay.io/jupyter/pytorch-notebook:cuda13-latest
+
+                  mem_guarantee: 4G
+                  mem_limit: 12G
 
                   extra_resource_limits:
                     nvidia.com/gpu: "1"
