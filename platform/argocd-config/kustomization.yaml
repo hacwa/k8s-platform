@@ -8,6 +8,7 @@ resources:
   - argocd-cmd-params-cm.yaml
   - argocd-servicemonitors.yaml
   - argocd-prometheusrules.yaml
+  - applicationset-controller-restart.yaml
 
 configMapGenerator:
   - name: argocd-grafana-dashboard

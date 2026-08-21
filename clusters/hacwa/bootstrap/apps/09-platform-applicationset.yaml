@@ -1,0 +1,876 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hacwa-platform-applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "09"
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - git:
+        repoURL: https://github.com/hacwa/k8s-platform.git
+        revision: main
+        files:
+          - path: clusters/hacwa/bootstrap/catalog/foundation/*.yaml
+          - path: clusters/hacwa/bootstrap/catalog/workloads/*.yaml
+
+  template:
+    metadata:
+      name: '{{ .metadata.name }}'
+      namespace: argocd
+    spec:
+      project: default
+
+      # Required by the ApplicationSet CRD before templatePatch rendering.
+      # The real destination from each catalog Application replaces this.
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+
+  templatePatch: |
+    metadata:
+      annotations:
+    {{ with (dig "metadata" "annotations" (dict) .) }}
+    {{ toYaml . | nindent 4 }}
+    {{ end }}
+      labels:
+    {{ with (dig "metadata" "labels" (dict) .) }}
+    {{ toYaml . | nindent 4 }}
+    {{ end }}
+        hacwa.co.uk/application-tier: {{ .path.basename | quote }}
+        hacwa.co.uk/sync-wave: {{ dig "argocd.argoproj.io/sync-wave" "99" (dig "metadata" "annotations" (dict) .) | quote }}
+        hacwa.co.uk/sync-mode: {{ if hasKey (dig "spec" "syncPolicy" (dict) .) "automated" }}"automatic"{{ else }}"manual"{{ end }}
+    spec:
+    {{ omit .spec "project" | toYaml | nindent 2 }}
+
+  syncPolicy:
+    applicationsSync: create-update
+    preserveResourcesOnDeletion: true
+
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "09"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "10"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "11"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "12"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "13"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "14"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "15"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "16"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "17"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "18"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "19"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "20"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "21"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "22"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "23"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "24"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "25"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "26"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "27"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "28"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "29"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "30"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "31"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "32"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "33"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "34"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "35"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "36"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "37"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "38"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "39"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "40"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "41"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "42"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "43"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "44"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "45"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "46"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "47"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "48"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "49"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "50"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "51"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "52"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "53"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "54"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "55"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "56"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "57"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "58"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "59"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "60"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "61"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "62"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "63"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "64"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "65"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "66"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "67"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "68"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "69"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "70"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "71"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "72"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "73"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "74"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "75"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "76"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "77"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "78"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "79"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "80"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "81"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "82"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "83"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "84"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "85"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "86"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "87"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "88"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "89"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "90"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "91"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "92"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "93"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "94"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "95"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "96"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "97"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "98"
+        - matchExpressions:
+            - key: hacwa.co.uk/sync-mode
+              operator: In
+              values:
+                - automatic
+            - key: hacwa.co.uk/sync-wave
+              operator: In
+              values:
+                - "99"

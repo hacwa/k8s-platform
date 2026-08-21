@@ -30,6 +30,59 @@ data:
 
     return hs
 
+  resource.customizations.health.argoproj.io_ApplicationSet: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = "Waiting for ApplicationSet reconciliation"
+
+    if obj.status ~= nil then
+      if obj.status.health ~= nil
+        and obj.status.health.status ~= nil
+        and obj.status.health.status ~= ""
+      then
+        hs.status = obj.status.health.status
+
+        if obj.status.health.message ~= nil then
+          hs.message = obj.status.health.message
+        end
+
+        return hs
+      end
+
+      if obj.status.conditions ~= nil then
+        local progressing = nil
+        local healthy = nil
+
+        for _, condition in ipairs(obj.status.conditions) do
+          if condition.status == "True" then
+            if condition.type == "ErrorOccurred" then
+              hs.status = "Degraded"
+              hs.message = condition.message or "ApplicationSet reconciliation failed"
+              return hs
+            elseif condition.type == "RolloutProgressing" then
+              progressing = condition
+            elseif condition.type == "ResourcesUpToDate" then
+              healthy = condition
+            end
+          end
+        end
+
+        if progressing ~= nil then
+          hs.status = "Progressing"
+          hs.message = progressing.message or "ApplicationSet rollout is progressing"
+          return hs
+        end
+
+        if healthy ~= nil then
+          hs.status = "Healthy"
+          hs.message = healthy.message or "ApplicationSet resources are up to date"
+          return hs
+        end
+      end
+    end
+
+    return hs
+
   resource.exclusions: |
     - apiGroups:
         - ""
