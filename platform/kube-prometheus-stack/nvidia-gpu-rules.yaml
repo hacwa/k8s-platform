@@ -77,13 +77,13 @@ spec:
           expr: |
             max by (node, gpu, modelName) (
               increase(
-                DCGM_FI_DEV_PCIE_REPLAY_COUNTER[15m]
+                DCGM_FI_DEV_PCIE_REPLAY_COUNTER[1m]
               )
-            ) > 0
+            ) > 8
           for: 5m
           labels:
             severity: warning
             namespace: nvidia-dcgm-exporter
           annotations:
-            summary: NVIDIA GPU PCIe replay errors detected
-            description: GPU {{ $labels.gpu }} on {{ $labels.node }} reported {{ $value }} PCIe replay events in the last fifteen minutes.
+            summary: NVIDIA GPU PCIe replay rate is excessive
+            description: GPU {{ $labels.gpu }} on {{ $labels.node }} has exceeded eight PCIe replay events per minute for five minutes. Current one-minute replay count is {{ printf "%.1f" $value }}.
