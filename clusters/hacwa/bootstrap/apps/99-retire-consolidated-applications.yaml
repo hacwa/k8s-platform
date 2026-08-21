@@ -1,0 +1,299 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: retire-consolidated-applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "98"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: retire-consolidated-applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "98"
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    resourceNames:
+      - metallb
+      - kubecost
+      - jupyterhub
+      - metallb-config
+      - kubecost-route
+      - jupyterhub-config
+      - jupyterhub-route
+    verbs:
+      - get
+
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    resourceNames:
+      - metallb-config
+      - kubecost-route
+      - jupyterhub-config
+      - jupyterhub-route
+    verbs:
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: retire-consolidated-applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "98"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: retire-consolidated-applications
+subjects:
+  - kind: ServiceAccount
+    name: retire-consolidated-applications
+    namespace: argocd
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: retire-consolidated-applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "99"
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: retire-consolidated-applications
+        app.kubernetes.io/part-of: argocd
+
+    spec:
+      serviceAccountName: retire-consolidated-applications
+      restartPolicy: Never
+
+      containers:
+        - name: retire
+          image: python:3.13-alpine
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - python3
+            - -c
+
+          args:
+            - |
+              import json
+              import os
+              import ssl
+              import time
+              from urllib.error import HTTPError
+              from urllib.request import Request, urlopen
+
+              namespace = "argocd"
+
+              host = os.environ["KUBERNETES_SERVICE_HOST"]
+              port = os.environ.get(
+                  "KUBERNETES_SERVICE_PORT_HTTPS",
+                  "443",
+              )
+
+              server = f"https://{host}:{port}"
+
+              token_path = (
+                  "/var/run/secrets/kubernetes.io/"
+                  "serviceaccount/token"
+              )
+
+              ca_path = (
+                  "/var/run/secrets/kubernetes.io/"
+                  "serviceaccount/ca.crt"
+              )
+
+              with open(
+                  token_path,
+                  encoding="utf-8",
+              ) as handle:
+                  token = handle.read().strip()
+
+              context = ssl.create_default_context(
+                  cafile=ca_path,
+              )
+
+              def request(method, path, payload=None):
+                  body = None
+
+                  headers = {
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/json",
+                  }
+
+                  if payload is not None:
+                      body = json.dumps(payload).encode("utf-8")
+                      headers["Content-Type"] = "application/json"
+
+                  req = Request(
+                      f"{server}{path}",
+                      data=body,
+                      headers=headers,
+                      method=method,
+                  )
+
+                  try:
+                      with urlopen(
+                          req,
+                          context=context,
+                          timeout=15,
+                      ) as response:
+                          raw = response.read()
+
+                          if not raw:
+                              return None
+
+                          return json.loads(
+                              raw.decode("utf-8")
+                          )
+
+                  except HTTPError as exc:
+                      if exc.code == 404:
+                          return None
+
+                      detail = exc.read().decode(
+                          "utf-8",
+                          errors="replace",
+                      )
+
+                      raise RuntimeError(
+                          f"{method} {path} failed "
+                          f"with HTTP {exc.code}: {detail}"
+                      ) from exc
+
+              def application_path(name):
+                  return (
+                      "/apis/argoproj.io/v1alpha1/"
+                      f"namespaces/{namespace}/"
+                      f"applications/{name}"
+                  )
+
+              replacements = {
+                  "metallb",
+                  "kubecost",
+                  "jupyterhub",
+              }
+
+              deadline = time.monotonic() + 600
+              pending = set(replacements)
+
+              while (
+                  pending
+                  and time.monotonic() < deadline
+              ):
+                  for name in sorted(tuple(pending)):
+                      app = request(
+                          "GET",
+                          application_path(name),
+                      )
+
+                      if app is None:
+                          continue
+
+                      status = app.get("status", {})
+
+                      sync = status.get(
+                          "sync",
+                          {},
+                      ).get("status")
+
+                      health = status.get(
+                          "health",
+                          {},
+                      ).get("status")
+
+                      if (
+                          sync == "Synced"
+                          and health == "Healthy"
+                      ):
+                          print(
+                              f"replacement ready: {name}",
+                              flush=True,
+                          )
+                          pending.remove(name)
+
+                  if pending:
+                      print(
+                          "waiting for replacements: "
+                          + ", ".join(sorted(pending)),
+                          flush=True,
+                      )
+                      time.sleep(10)
+
+              if pending:
+                  raise SystemExit(
+                      "replacement Applications did not "
+                      "become Synced/Healthy: "
+                      + ", ".join(sorted(pending))
+                  )
+
+              legacy_names = (
+                  "metallb-config",
+                  "kubecost-route",
+                  "jupyterhub-config",
+                  "jupyterhub-route",
+              )
+
+              existing = {}
+
+              for name in legacy_names:
+                  app = request(
+                      "GET",
+                      application_path(name),
+                  )
+
+                  if app is None:
+                      print(
+                          f"already absent: {name}",
+                          flush=True,
+                      )
+                      continue
+
+                  finalizers = (
+                      app.get(
+                          "metadata",
+                          {},
+                      ).get("finalizers")
+                      or []
+                  )
+
+                  if finalizers:
+                      raise SystemExit(
+                          f"refusing to delete {name}; "
+                          "finalizers present: "
+                          + ", ".join(finalizers)
+                      )
+
+                  existing[name] = app
+
+              for name in legacy_names:
+                  if name not in existing:
+                      continue
+
+                  request(
+                      "DELETE",
+                      application_path(name),
+                      {
+                          "apiVersion": "v1",
+                          "kind": "DeleteOptions",
+                          "propagationPolicy": "Orphan",
+                      },
+                  )
+
+                  print(
+                      f"retired legacy Application: {name}",
+                      flush=True,
+                  )

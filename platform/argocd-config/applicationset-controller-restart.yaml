@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-applicationset-controller-reloader
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-applicationset-controller-reloader
+  namespace: argocd
+rules:
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-applicationset-controller-reloader
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-applicationset-controller-reloader
+subjects:
+  - kind: ServiceAccount
+    name: argocd-applicationset-controller-reloader
+    namespace: argocd
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restart-argocd-applicationset-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: restart-argocd-applicationset-controller
+        app.kubernetes.io/part-of: argocd
+    spec:
+      serviceAccountName: argocd-applicationset-controller-reloader
+      restartPolicy: Never
+      initContainers:
+        - name: restart
+          image: registry.k8s.io/kubectl:v1.36.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -n
+            - argocd
+            - rollout
+            - restart
+            - deployment/argocd-applicationset-controller
+      containers:
+        - name: wait
+          image: registry.k8s.io/kubectl:v1.36.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -n
+            - argocd
+            - rollout
+            - status
+            - deployment/argocd-applicationset-controller
+            - --timeout=180s
