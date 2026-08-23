@@ -1,0 +1,256 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  KUBERNETES_VERSION: "1.36.0"
+  KUSTOMIZE_VERSION: "5.8.1"
+  HELM_VERSION: "v3.21.4"
+  KUBECONFORM_VERSION: "0.8.0"
+  ACTIONLINT_VERSION: "1.7.12"
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  pr_title:
+    name: PR title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Validate Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pattern='^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?(!)?: .+'
+
+          if [[ ! "${PR_TITLE}" =~ ${pattern} ]]; then
+            echo "Invalid PR title: ${PR_TITLE}"
+            echo
+            echo "Expected Conventional Commit format, for example:"
+            echo "  feat(platform): add service"
+            echo "  fix(velero): correct backup policy"
+            echo "  ci(github): validate pull requests"
+            exit 1
+          fi
+
+  repository_syntax:
+    name: Repository syntax
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install YAML parser
+        run: python -m pip install --disable-pip-version-check 'PyYAML==6.0.3'
+
+      - name: Validate YAML and JSON
+        run: python .github/scripts/validate-repo.py syntax
+
+      - name: Validate Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            echo "python: ${file}"
+            python -m py_compile "${file}"
+          done < <(
+            find . -type f -name '*.py' \
+              -not -path './.git/*' \
+              -print0 | sort -z
+          )
+
+      - name: Validate Ruby syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            echo "ruby: ${file}"
+            ruby -c "${file}"
+          done < <(
+            find . -type f -name '*.rb' \
+              -not -path './.git/*' \
+              -print0 | sort -z
+          )
+
+  argocd_catalog:
+    name: Argo CD catalogue
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install YAML parser
+        run: python -m pip install --disable-pip-version-check 'PyYAML==6.0.3'
+
+      - name: Validate Applications and ApplicationSet catalogue
+        run: python .github/scripts/validate-repo.py catalog
+
+  kustomize:
+    name: Kustomize manifests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Kustomize and kubeconform
+        run: .github/scripts/install-ci-tools.sh kustomize kubeconform
+
+      - name: Render every Kustomization
+        run: .github/scripts/render-kustomize.sh
+
+  helm:
+    name: Helm charts
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install kubeconform
+        run: .github/scripts/install-ci-tools.sh kubeconform
+
+      - name: Lint and render every local Helm chart
+        run: .github/scripts/render-helm.sh
+
+  workflow_lint:
+    name: GitHub workflow lint
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        run: .github/scripts/install-ci-tools.sh actionlint
+
+      - name: Validate GitHub Actions workflows
+        run: actionlint
+
+      - name: Validate CI shell scripts
+        shell: bash
+        run: bash -n .github/scripts/*.sh
+
+  secret_scan:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Gitleaks
+        run: .github/scripts/install-ci-tools.sh gitleaks
+
+      - name: Scan pull request commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          commit_count="$(
+            git rev-list --count "${BASE_SHA}..${HEAD_SHA}"
+          )"
+
+          if [[ "${commit_count}" -eq 0 ]]; then
+            echo "No PR commits found between ${BASE_SHA} and ${HEAD_SHA}" >&2
+            exit 1
+          fi
+
+          echo "Scanning ${commit_count} PR commit(s)"
+          gitleaks git \
+            --redact \
+            --verbose \
+            --log-opts="${BASE_SHA}..${HEAD_SHA}"
+
+      - name: Scan repository snapshot
+        if: github.event_name != 'pull_request'
+        run: gitleaks dir --redact --verbose .
+
+  required:
+    name: PR validation
+    if: always()
+    needs:
+      - pr_title
+      - repository_syntax
+      - argocd_catalog
+      - kustomize
+      - helm
+      - workflow_lint
+      - secret_scan
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Require every validation job
+        env:
+          PR_TITLE_RESULT: ${{ needs.pr_title.result }}
+          REPOSITORY_SYNTAX_RESULT: ${{ needs.repository_syntax.result }}
+          ARGOCD_CATALOG_RESULT: ${{ needs.argocd_catalog.result }}
+          KUSTOMIZE_RESULT: ${{ needs.kustomize.result }}
+          HELM_RESULT: ${{ needs.helm.result }}
+          WORKFLOW_LINT_RESULT: ${{ needs.workflow_lint.result }}
+          SECRET_SCAN_RESULT: ${{ needs.secret_scan.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_pr_title='success'
+          if [[ "${{ github.event_name }}" != 'pull_request' ]]; then
+            expected_pr_title='skipped'
+          fi
+
+          [[ "${PR_TITLE_RESULT}" == "${expected_pr_title}" ]]
+          [[ "${REPOSITORY_SYNTAX_RESULT}" == 'success' ]]
+          [[ "${ARGOCD_CATALOG_RESULT}" == 'success' ]]
+          [[ "${KUSTOMIZE_RESULT}" == 'success' ]]
+          [[ "${HELM_RESULT}" == 'success' ]]
+          [[ "${WORKFLOW_LINT_RESULT}" == 'success' ]]
+          [[ "${SECRET_SCAN_RESULT}" == 'success' ]]
+
+          echo "All required validation checks passed."
