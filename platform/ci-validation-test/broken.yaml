@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deliberately-broken
+data:
+  this-is: "valid"
+    this-is-not: "valid YAML"
