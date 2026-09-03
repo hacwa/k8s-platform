@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kasm-kubernetes-agent-bootstrap
+  namespace: kasm
+data:
+  run: |
+    #!/usr/bin/with-contenv bash
+
+    echo "===== KASM KUBERNETES AGENT BOOTSTRAP ====="
+
+    attempts=0
+
+    until docker info >/dev/null 2>&1; do
+      attempts=$((attempts + 1))
+
+      if [ "$attempts" -ge 120 ]; then
+        echo "ERROR: Nested Docker daemon did not become available."
+        exit 1
+      fi
+
+      sleep 2
+    done
+
+    echo "Nested Docker daemon is available."
+
+    echo
+    echo "===== NVIDIA GPU ====="
+
+    if ! nvidia-smi -L; then
+      echo "ERROR: NVIDIA GPU is not visible inside the Kubernetes Agent pod."
+      exit 1
+    fi
+
+    echo
+    echo "===== NVIDIA DOCKER RUNTIME ====="
+
+    if ! docker info --format '{{json .Runtimes}}' | grep -q '"nvidia"'; then
+      echo "ERROR: Nested Docker daemon does not expose the NVIDIA runtime."
+      exit 1
+    fi
+
+    AGENT_CONFIG="/opt/kasm/current/conf/app/agent/agent.app.config.yaml"
+    KASM_START="/opt/kasm/bin/start"
+
+    if [ -f "$AGENT_CONFIG" ] && [ -x "$KASM_START" ]; then
+      echo
+      echo "Existing Kasm Agent installation found."
+      echo "Starting existing Kasm Agent services."
+
+      "$KASM_START"
+
+    elif [ ! -e "$AGENT_CONFIG" ] && [ ! -e "$KASM_START" ]; then
+      echo
+      echo "No existing Kasm Agent installation found."
+      echo "Installing Kasm 1.19 Agent role."
+
+      if [ -z "$KASM_MANAGER_TOKEN" ]; then
+        echo "ERROR: KASM_MANAGER_TOKEN is empty."
+        exit 1
+      fi
+
+      bash /kasm_release/install.sh \
+        --accept-eula \
+        --no-swap-check \
+        --ignore-dep-failures \
+        --role agent \
+        --public-hostname "$KASM_AGENT_PUBLIC_HOSTNAME" \
+        --manager-hostname "$KASM_MANAGER_HOSTNAME" \
+        --manager-token "$KASM_MANAGER_TOKEN" \
+        --agent-server-id "$KASM_AGENT_SERVER_ID"
+
+    else
+      echo "ERROR: Partial Kasm Agent installation detected."
+      echo "Agent config: $AGENT_CONFIG"
+      echo "Start command: $KASM_START"
+      exit 1
+    fi
+
+    echo
+    echo "===== WAITING FOR KASM AGENT ====="
+
+    attempts=0
+
+    while true; do
+      AGENT_STATUS="$(
+        docker inspect \
+          --format '{{.State.Status}}{{if .State.Health}}:{{.State.Health.Status}}{{end}}' \
+          kasm_agent 2>/dev/null || true
+      )"
+
+      PROXY_STATUS="$(
+        docker inspect \
+          --format '{{.State.Status}}' \
+          kasm_proxy 2>/dev/null || true
+      )"
+
+      echo "Agent: $AGENT_STATUS"
+      echo "Proxy: $PROXY_STATUS"
+
+      if [ "$AGENT_STATUS" = "running:healthy" ] && \
+         [ "$PROXY_STATUS" = "running" ]; then
+        break
+      fi
+
+      attempts=$((attempts + 1))
+
+      if [ "$attempts" -ge 120 ]; then
+        echo "ERROR: Kasm Agent services did not become healthy."
+        docker ps -a
+        exit 1
+      fi
+
+      sleep 5
+    done
+
+    echo
+    echo "===== KASM KUBERNETES AGENT READY ====="
+    echo "Agent hostname: $KASM_AGENT_PUBLIC_HOSTNAME"
+    echo "Manager hostname: $KASM_MANAGER_HOSTNAME"
+
+    exec tail -f /dev/null
