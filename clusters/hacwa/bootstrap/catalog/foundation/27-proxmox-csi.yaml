@@ -26,6 +26,24 @@ spec:
           nodeSelector:
             hacwa.co.uk/proxmox-csi: "true"
 
+          tolerations:
+            - key: karpenter.sh/disrupted
+              operator: Exists
+              effect: NoSchedule
+
+            - key: node.kubernetes.io/unschedulable
+              operator: Exists
+              effect: NoSchedule
+
+            - key: node.kubernetes.io/disk-pressure
+              operator: Exists
+              effect: NoSchedule
+
+            - key: nvidia.com/gpu
+              operator: Equal
+              value: "true"
+              effect: NoSchedule
+
         storageClass:
           - name: proxmox-block
             storage: k8s-01
