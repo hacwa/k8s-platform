@@ -48,7 +48,7 @@ spec:
             certManager:
               enabled: true
               addWildCard: false
-              issuerName: letsencrypt-cloudflare-prod
+              issuerName: hacwa-internal-ca
               issuerKind: ClusterIssuer
               issuerGroup: cert-manager.io
 
