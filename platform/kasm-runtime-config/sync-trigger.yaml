@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kasm-runtime-config-sync
+  namespace: kasm
+  labels:
+    app.kubernetes.io/name: kasm-runtime-config-sync
+    app.kubernetes.io/part-of: kasm
+data:
+  zone-proxy-hostname: kasm.hacwa.co.uk
+  reconciliation-version: "1"
