@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kasm-preseed-patcher
+  namespace: kasm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    resourceNames:
+      - kasm-secrets
+      - kasm-db-preseed
+    verbs:
+      - get
+      - patch
+      - update

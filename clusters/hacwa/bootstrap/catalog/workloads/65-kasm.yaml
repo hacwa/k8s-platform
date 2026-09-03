@@ -1,0 +1,150 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kasm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "64"
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/hacwa/k8s-platform.git
+      targetRevision: main
+      path: platform/kasm-config
+
+    - repoURL: https://github.com/kasmtech/kasm-helm.git
+      targetRevision: 1833f1d7ebdc0a8fe06900315ecce18f887e3e6d
+      path: charts/kasm-helm
+
+      helm:
+        releaseName: kasm
+
+        values: |
+          deploymentSize: small
+
+          publicAddr: kasm.hacwa.co.uk
+
+          # The cluster bootstrap defines serviceSubnet 172.31.0.0/16.
+          # kubeadm allocates the cluster DNS service at .10.
+          # This must be explicit because Argo renders Helm outside the
+          # cluster and the Kasm chart otherwise falls back to 127.0.0.11.
+          nginxResolver: "172.31.0.10"
+
+          useImageTags: "1.19.0"
+
+          proxyService:
+            type: ClusterIP
+
+          ingress:
+            enabled: false
+
+          route:
+            enabled: false
+
+          certificate:
+            secretName: kasm-internal-tls
+
+            certManager:
+              enabled: true
+              addWildCard: false
+              issuerName: letsencrypt-cloudflare-prod
+              issuerKind: ClusterIssuer
+              issuerGroup: cert-manager.io
+
+          kasmSecrets:
+            create: false
+            name: kasm-secrets
+
+          database:
+            standalone: false
+
+            storage:
+              storageClassName: proxmox-block
+              pvcSize: 16
+
+              retentionPolicy:
+                whenDeleted: Retain
+                whenScaled: Retain
+
+          dbManagement:
+            initialize: true
+
+            backupCron:
+              enabled: false
+
+          components:
+            guac:
+              enabled: false
+
+            rdpGateway:
+              enabled: false
+
+            rdpHttpsGateway:
+              enabled: false
+
+          kasmConfig:
+            generatePreseed: true
+            defaultUsers: true
+            defaultApiUsers: false
+            adminUsername: admin@kasm.local
+
+            config:
+              oidcConfigs:
+                - display_name: Keycloak
+                  client_id: kasm
+                  client_secret: "__KASM_OIDC_CLIENT_SECRET__"
+
+                  auth_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/auth
+                  token_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/token
+                  user_info_url: https://keycloak.hacwa.co.uk/realms/master/protocol/openid-connect/userinfo
+                  issuer: https://keycloak.hacwa.co.uk/realms/master
+
+                  redirect_url: https://kasm.hacwa.co.uk/api/oidc_callback
+
+                  username_attribute: preferred_username
+                  groups_attribute: groups
+
+                  scope:
+                    - openid
+                    - profile
+                    - email
+                    - groups
+
+                  enabled: true
+                  is_default: true
+                  auto_login: false
+
+                  enable_frontchannel_logout: false
+                  logout_with_oidc_provider: true
+
+              sso_to_group_mapping:
+                - group_id: "68d557ac-4cac-42cc-a9f3-1c7c853de0f3"
+                  oidc_id: "${uuid:oidc_id:1}"
+                  sso_group_attributes: "KasmUsers"
+                  apply_to_all_users: false
+
+                - group_id: "${uuid:group_id:2}"
+                  oidc_id: "${uuid:oidc_id:1}"
+                  sso_group_attributes: "KasmAdmins"
+                  apply_to_all_users: false
+
+    - repoURL: https://github.com/hacwa/k8s-platform.git
+      targetRevision: main
+      path: platform/kasm-route
+      kustomize:
+        commonAnnotations:
+          argocd.argoproj.io/sync-wave: "1"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kasm
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
