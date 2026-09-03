@@ -1,0 +1,116 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kasm-zone-reconcile
+  namespace: kasm
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kasm-zone-reconcile
+        app.kubernetes.io/part-of: kasm
+
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: reconcile-zone
+          image: docker.io/kasmweb/postgres:1.19.0
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: PGHOST
+              value: kasm-db
+
+            - name: PGPORT
+              value: "5432"
+
+            - name: PGDATABASE
+              value: kasm
+
+            - name: PGUSER
+              value: kasmapp
+
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kasm-secrets
+                  key: db-password
+
+          command:
+            - /bin/sh
+            - -c
+
+          args:
+            - |
+              attempts=0
+
+              until psql -v ON_ERROR_STOP=1 -Atc "SELECT 1" >/dev/null 2>&1; do
+                attempts=$((attempts + 1))
+
+                if [ "$attempts" -ge 60 ]; then
+                  echo "ERROR: Kasm database did not become available."
+                  exit 1
+                fi
+
+                sleep 5
+              done
+
+              if ! zone_count="$(
+                psql \
+                  -v ON_ERROR_STOP=1 \
+                  -Atc "SELECT COUNT(*) FROM zones WHERE zone_name = 'default';"
+              )"; then
+                echo "ERROR: Unable to read Kasm deployment zones."
+                exit 1
+              fi
+
+              if [ "$zone_count" != "1" ]; then
+                echo "ERROR: Expected exactly one Kasm zone named default; found $zone_count."
+                exit 1
+              fi
+
+              if ! current_proxy_hostname="$(
+                psql \
+                  -v ON_ERROR_STOP=1 \
+                  -Atc "SELECT COALESCE(proxy_hostname, '') FROM zones WHERE zone_name = 'default';"
+              )"; then
+                echo "ERROR: Unable to read the current Kasm proxy hostname."
+                exit 1
+              fi
+
+              if [ "$current_proxy_hostname" = "kasm.hacwa.co.uk" ]; then
+                echo "Kasm default zone proxy hostname is already correct."
+              else
+                echo "Reconciling Kasm default zone proxy hostname."
+
+                if ! psql \
+                  -v ON_ERROR_STOP=1 \
+                  -c "UPDATE zones SET proxy_hostname = 'kasm.hacwa.co.uk' WHERE zone_name = 'default';"
+                then
+                  echo "ERROR: Failed to update the Kasm default zone."
+                  exit 1
+                fi
+              fi
+
+              if ! verified_proxy_hostname="$(
+                psql \
+                  -v ON_ERROR_STOP=1 \
+                  -Atc "SELECT COALESCE(proxy_hostname, '') FROM zones WHERE zone_name = 'default';"
+              )"; then
+                echo "ERROR: Unable to verify the Kasm proxy hostname."
+                exit 1
+              fi
+
+              if [ "$verified_proxy_hostname" != "kasm.hacwa.co.uk" ]; then
+                echo "ERROR: Kasm default zone proxy hostname verification failed."
+                exit 1
+              fi
+
+              echo "Kasm default zone proxy hostname: $verified_proxy_hostname"
