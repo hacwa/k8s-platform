@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kasm-kubernetes-agent
+  namespace: kasm
+  labels:
+    app.kubernetes.io/name: kasm-kubernetes-agent
+    app.kubernetes.io/part-of: kasm
+spec:
+  serviceName: kasm-kubernetes-agent-headless
+  replicas: 1
+
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kasm-kubernetes-agent
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kasm-kubernetes-agent
+        app.kubernetes.io/part-of: kasm
+
+    spec:
+      terminationGracePeriodSeconds: 180
+
+      nodeSelector:
+        node-role.kubernetes.io/gpu: ""
+
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+
+      containers:
+        - name: agent-host
+          image: docker.io/kasmweb/workspaces:1.19.0@sha256:60642b7c79a24790dff373404400ce35c95e7af56eec2768e3c0201f0b6fa15a
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            runAsGroup: 0
+
+          env:
+            - name: KASM_MANAGER_HOSTNAME
+              value: kasm.hacwa.co.uk
+
+            - name: KASM_AGENT_PUBLIC_HOSTNAME
+              value: kasm-kubernetes-agent.kasm.svc.cluster.local
+
+            - name: KASM_AGENT_SERVER_ID
+              value: 4800e3ee-1e4b-42c0-a0fe-1e1b0aef34f1
+
+            - name: KASM_MANAGER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: kasm-secrets
+                  key: manager-token
+
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+              nvidia.com/gpu: "1"
+
+            limits:
+              cpu: "8"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+
+          startupProbe:
+            tcpSocket:
+              port: https
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 180
+
+          readinessProbe:
+            tcpSocket:
+              port: https
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          livenessProbe:
+            tcpSocket:
+              port: https
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: kasm-data
+              mountPath: /opt
+
+            - name: bootstrap
+              mountPath: /etc/services.d/kasm-agent-bootstrap/run
+              subPath: run
+              readOnly: true
+
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: kasm-kubernetes-agent-bootstrap
+            defaultMode: 0755
+
+  volumeClaimTemplates:
+    - metadata:
+        name: kasm-data
+
+      spec:
+        accessModes:
+          - ReadWriteOnce
+
+        storageClassName: proxmox-block
+
+        resources:
+          requests:
+            storage: 100Gi

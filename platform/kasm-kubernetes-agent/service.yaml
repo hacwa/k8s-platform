@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kasm-kubernetes-agent-headless
+  namespace: kasm
+  labels:
+    app.kubernetes.io/name: kasm-kubernetes-agent
+    app.kubernetes.io/part-of: kasm
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+
+  selector:
+    app.kubernetes.io/name: kasm-kubernetes-agent
+
+  ports:
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kasm-kubernetes-agent
+  namespace: kasm
+  labels:
+    app.kubernetes.io/name: kasm-kubernetes-agent
+    app.kubernetes.io/part-of: kasm
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: kasm-kubernetes-agent
+
+  ports:
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
