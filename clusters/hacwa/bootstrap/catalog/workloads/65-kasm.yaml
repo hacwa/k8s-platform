@@ -140,6 +140,19 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kasm
 
+  # kasm-db-preseed is deliberately modified by the PreSync patcher to
+  # inject the OIDC client secret. The generated preseed is only consumed
+  # during initial database creation. Once the Secret exists, its
+  # custom_properties.yaml data is runtime-owned so Argo must not restore
+  # the unpatched Git-rendered value and trigger another initialization.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      namespace: kasm
+      name: kasm-db-preseed
+      jsonPointers:
+        - /data/custom_properties.yaml
+
   syncPolicy:
     automated:
       prune: true
@@ -148,3 +161,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
