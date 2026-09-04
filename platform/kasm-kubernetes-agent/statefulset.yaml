@@ -23,6 +23,8 @@ spec:
       labels:
         app.kubernetes.io/name: kasm-kubernetes-agent
         app.kubernetes.io/part-of: kasm
+      annotations:
+        hacwa.co.uk/kasm-agent-bootstrap-revision: "2"
 
     spec:
       terminationGracePeriodSeconds: 180
