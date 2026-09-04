@@ -40,6 +40,14 @@ data:
       exit 1
     fi
 
+    echo
+    echo "===== CLEARING STALE KASM GPU HELPERS ====="
+
+    docker rm -f \
+      kasm_gpu_helper \
+      kasm_gpu_caps_helper \
+      >/dev/null 2>&1 || true
+
     AGENT_CONFIG="/opt/kasm/current/conf/app/agent/agent.app.config.yaml"
     KASM_START="/opt/kasm/bin/start"
 
@@ -119,4 +127,132 @@ data:
     echo "Agent hostname: $KASM_AGENT_PUBLIC_HOSTNAME"
     echo "Manager hostname: $KASM_MANAGER_HOSTNAME"
 
-    exec tail -f /dev/null
+    echo
+    echo "===== KASM GPU HELPER WATCHDOG ====="
+    echo "Monitoring kasm_gpu_helper and kasm_gpu_caps_helper."
+    echo "A helper must remain in Created state for 60 seconds before recovery."
+
+    WATCHDOG_INTERVAL_SECONDS=15
+    WATCHDOG_STUCK_CHECKS_REQUIRED=4
+
+    WATCHDOG_HELPER_ID=""
+    WATCHDOG_HELPER_NAME=""
+    WATCHDOG_STUCK_CHECKS=0
+
+    while true; do
+      sleep "$WATCHDOG_INTERVAL_SECONDS"
+
+      STUCK_HELPER_ID=""
+      STUCK_HELPER_NAME=""
+
+      for HELPER_NAME in kasm_gpu_helper kasm_gpu_caps_helper; do
+        HELPER_STATE="$(
+          docker inspect \
+            --format '{{.State.Status}}' \
+            "$HELPER_NAME" 2>/dev/null || true
+        )"
+
+        if [ "$HELPER_STATE" = "created" ]; then
+          STUCK_HELPER_ID="$(
+            docker inspect \
+              --format '{{.Id}}' \
+              "$HELPER_NAME" 2>/dev/null || true
+          )"
+
+          STUCK_HELPER_NAME="$HELPER_NAME"
+          break
+        fi
+      done
+
+      if [ -z "$STUCK_HELPER_ID" ]; then
+        WATCHDOG_HELPER_ID=""
+        WATCHDOG_HELPER_NAME=""
+        WATCHDOG_STUCK_CHECKS=0
+        continue
+      fi
+
+      if [ "$STUCK_HELPER_ID" = "$WATCHDOG_HELPER_ID" ]; then
+        WATCHDOG_STUCK_CHECKS=$((WATCHDOG_STUCK_CHECKS + 1))
+      else
+        WATCHDOG_HELPER_ID="$STUCK_HELPER_ID"
+        WATCHDOG_HELPER_NAME="$STUCK_HELPER_NAME"
+        WATCHDOG_STUCK_CHECKS=1
+      fi
+
+      echo "GPU helper $WATCHDOG_HELPER_NAME remains Created: check $WATCHDOG_STUCK_CHECKS/$WATCHDOG_STUCK_CHECKS_REQUIRED"
+
+      if [ "$WATCHDOG_STUCK_CHECKS" -lt "$WATCHDOG_STUCK_CHECKS_REQUIRED" ]; then
+        continue
+      fi
+
+      echo
+      echo "ERROR: GPU helper $WATCHDOG_HELPER_NAME has remained in Created state for at least 60 seconds."
+      echo "Removing the stuck helper and restarting only the nested Kasm Agent."
+
+      if ! docker rm -f "$WATCHDOG_HELPER_NAME"; then
+        echo "ERROR: Failed to remove stuck GPU helper $WATCHDOG_HELPER_NAME."
+
+        WATCHDOG_HELPER_ID=""
+        WATCHDOG_HELPER_NAME=""
+        WATCHDOG_STUCK_CHECKS=0
+
+        continue
+      fi
+
+      if ! docker restart kasm_agent; then
+        echo "ERROR: Failed to restart nested Kasm Agent."
+
+        WATCHDOG_HELPER_ID=""
+        WATCHDOG_HELPER_NAME=""
+        WATCHDOG_STUCK_CHECKS=0
+
+        continue
+      fi
+
+      echo
+      echo "Waiting for nested Kasm Agent to become healthy."
+
+      attempts=0
+
+      while true; do
+        AGENT_STATUS="$(
+          docker inspect \
+            --format '{{.State.Status}}{{if .State.Health}}:{{.State.Health.Status}}{{end}}' \
+            kasm_agent 2>/dev/null || true
+        )"
+
+        echo "Agent: $AGENT_STATUS"
+
+        if [ "$AGENT_STATUS" = "running:healthy" ]; then
+          break
+        fi
+
+        attempts=$((attempts + 1))
+
+        if [ "$attempts" -ge 24 ]; then
+          echo "WARNING: Nested Kasm Agent did not become healthy within 120 seconds."
+          break
+        fi
+
+        sleep 5
+      done
+
+      sleep 5
+
+      if docker logs \
+        --since=90s \
+        kasm_agent 2>&1 | \
+        grep -q 'Provisioner initialized with 1 GPU(s)'; then
+        echo "Kasm GPU discovery recovered successfully."
+      else
+        echo "WARNING: Kasm Agent restarted but GPU rediscovery has not yet been confirmed."
+      fi
+
+      WATCHDOG_HELPER_ID=""
+      WATCHDOG_HELPER_NAME=""
+      WATCHDOG_STUCK_CHECKS=0
+
+      echo "GPU helper watchdog resumed."
+
+      sleep 30
+    done
