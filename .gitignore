@@ -1,1 +1,4 @@
 .local/
+
+# Helm dependencies are rebuilt from the committed lock files.
+platform/slurm-*/charts/
