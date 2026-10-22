@@ -34,6 +34,7 @@ policy:
         - argocd
         - gitlab-runner
         - jitsi
+        - slurm-system
 
       includeClusterResources: true
 
@@ -43,6 +44,13 @@ policy:
         - events.events.k8s.io
         - leases.coordination.k8s.io
         - ciliumendpoints.cilium.io
+        - controllers.slinky.slurm.net
+        - accountings.slinky.slurm.net
+        - restapis.slinky.slurm.net
+        - nodesets.slinky.slurm.net
+        - loginsets.slinky.slurm.net
+        - tokens.slinky.slurm.net
+        - slurmclients.slinky.slurm.net
 
       # Filesystem Backup works for mounted NFS and filesystem-backed block PVCs.
       # Kopia reads each mounted PVC through Velero's node agent.
