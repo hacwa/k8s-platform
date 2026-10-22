@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: slurm-mariadb
+  namespace: slurm
+spec:
+  selector:
+    app: slurm-mariadb
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: slurm-mariadb
+  namespace: slurm
+spec:
+  replicas: 1
+  serviceName: slurm-mariadb
+  selector:
+    matchLabels:
+      app: slurm-mariadb
+  template:
+    metadata:
+      labels:
+        app: slurm-mariadb
+      annotations:
+        backup.velero.io/backup-volumes: db-backups
+        backup.velero.io/backup-volumes-excludes: db-data
+        pre.hook.backup.velero.io/container: mariadb
+        pre.hook.backup.velero.io/command: '["/bin/bash","/opt/slurm-backup.sh"]'
+        pre.hook.backup.velero.io/on-error: Fail
+        pre.hook.backup.velero.io/timeout: 5m
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+      containers:
+      - name: mariadb
+        image: mariadb:11.8.6@sha256:78a5047d3ba33975f183f183c2464cc7f1eab13ec8667e57cc9a5821d6da7577
+        ports:
+        - name: mysql
+          containerPort: 3306
+        env:
+        - name: MARIADB_DATABASE
+          value: slurm_acct_db
+        - name: MARIADB_USER
+          value: slurm
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: slurm-database
+              key: password
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: slurm-database
+              key: root-password
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        startupProbe:
+          exec:
+            command:
+            - healthcheck.sh
+            - --connect
+            - --innodb_initialized
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - healthcheck.sh
+            - --connect
+            - --innodb_initialized
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - healthcheck.sh
+            - --connect
+          periodSeconds: 20
+          failureThreshold: 6
+        volumeMounts:
+        - name: db-data
+          mountPath: /var/lib/mysql
+        - name: db-backups
+          mountPath: /backups
+        - name: config
+          mountPath: /etc/mysql/conf.d/60-slurm.cnf
+          subPath: 60-slurm.cnf
+          readOnly: true
+        - name: config
+          mountPath: /docker-entrypoint-initdb.d/20-restore.sh
+          subPath: 20-restore.sh
+          readOnly: true
+        - name: config
+          mountPath: /opt/slurm-backup.sh
+          subPath: backup.sh
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: db-data
+        persistentVolumeClaim:
+          claimName: slurm-db-data
+      - name: db-backups
+        persistentVolumeClaim:
+          claimName: slurm-db-backups
+      - name: config
+        configMap:
+          name: slurm-database-config
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
