@@ -1,0 +1,266 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: slurm-web-agent
+  namespace: slurm
+spec:
+  selector:
+    app: slurm-web-agent
+  ports:
+  - name: http
+    port: 5012
+    targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slurm-web-agent
+  namespace: slurm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slurm-web-agent
+  template:
+    metadata:
+      labels:
+        app: slurm-web-agent
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: agent
+        image: ghcr.io/rackslab/slurm-web-agent:7.0.0@sha256:2703fedd8c9d5b811a258e3813b07df793db929bd9fc86a83050d5324717a778
+        args:
+        - agent
+        env:
+        - name: SLURMWEB_WORKERS
+          value: '2'
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        ports:
+        - name: http
+          containerPort: 5012
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:
+          httpGet:
+            path: /version
+            port: http
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /version
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /version
+            port: http
+          periodSeconds: 20
+        volumeMounts:
+        - name: config
+          mountPath: /etc/slurm-web/agent.ini
+          subPath: agent.ini
+          readOnly: true
+        - name: keys
+          mountPath: /var/lib/slurm-web
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: config
+          mountPath: /etc/slurm-web/policy.ini
+          subPath: policy.ini
+          readOnly: true
+        - name: slurm-auth
+          mountPath: /etc/slurm-web/slurm-auth
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: slurm-web-config
+      - name: keys
+        secret:
+          secretName: slurm-web-keys
+          defaultMode: 288
+      - name: tmp
+        emptyDir: {}
+      - name: slurm-auth
+        secret:
+          secretName: slurm-auth
+          defaultMode: 288
+          items:
+          - key: jwt.key
+            path: jwt.key
+      initContainers:
+      - name: slurm-connect-check
+        image: ghcr.io/rackslab/slurm-web-agent:7.0.0@sha256:2703fedd8c9d5b811a258e3813b07df793db929bd9fc86a83050d5324717a778
+        args:
+        - connect-check
+        env:
+        - name: SLURMWEB_WORKERS
+          value: '2'
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: config
+          mountPath: /etc/slurm-web/agent.ini
+          subPath: agent.ini
+          readOnly: true
+        - name: keys
+          mountPath: /var/lib/slurm-web
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: config
+          mountPath: /etc/slurm-web/policy.ini
+          subPath: policy.ini
+          readOnly: true
+        - name: slurm-auth
+          mountPath: /etc/slurm-web/slurm-auth
+          readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slurm-web-gateway
+  namespace: slurm
+spec:
+  selector:
+    app: slurm-web-gateway
+  ports:
+  - name: http
+    port: 5011
+    targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slurm-web-gateway
+  namespace: slurm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slurm-web-gateway
+  template:
+    metadata:
+      labels:
+        app: slurm-web-gateway
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: gateway
+        image: ghcr.io/rackslab/slurm-web-gateway:7.0.0@sha256:79e899df49e10505b1f8449f0dd44c59df1acaf2b99c6de82d02aea5dea77862
+        args:
+        - gateway
+        env:
+        - name: SLURMWEB_WORKERS
+          value: '2'
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        ports:
+        - name: http
+          containerPort: 5011
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:
+          httpGet:
+            path: /config.json
+            port: http
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /config.json
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /config.json
+            port: http
+          periodSeconds: 20
+        volumeMounts:
+        - name: config
+          mountPath: /etc/slurm-web/gateway.ini
+          subPath: gateway.ini
+          readOnly: true
+        - name: keys
+          mountPath: /var/lib/slurm-web
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: oidc
+          mountPath: /etc/slurm-web/oidc
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: slurm-web-config
+      - name: keys
+        secret:
+          secretName: slurm-web-keys
+          defaultMode: 288
+      - name: tmp
+        emptyDir: {}
+      - name: oidc
+        secret:
+          secretName: slurm-web-oidc
+          defaultMode: 288
