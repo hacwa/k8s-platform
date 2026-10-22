@@ -1,0 +1,12 @@
+csi-driver-smb:
+  windows:
+    enabled: false
+  linux:
+    nodeSelector:
+      kubernetes.io/os: linux
+      node-role.kubernetes.io/worker: ''
+  controller:
+    nodeSelector:
+      kubernetes.io/os: linux
+      node-role.kubernetes.io/worker: ''
+  storageClasses: []
