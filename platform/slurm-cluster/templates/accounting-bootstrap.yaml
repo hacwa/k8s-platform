@@ -9,7 +9,7 @@ metadata:
     argocd.argoproj.io/sync-wave: '1'
 spec:
   backoffLimit: 1
-  activeDeadlineSeconds: 1800
+  activeDeadlineSeconds: 2400
   template:
     metadata:
       annotations:
@@ -61,9 +61,24 @@ spec:
           done
           [[ $worker_ready == yes ]] || { sinfo -N -l; echo 'No ready Slurm worker'; exit 1; }
           sbatch --wait --parsable --job-name=slurm-smoke --account=media --partition=media   --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=128M --time=00:02:00   --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/smoke-%j.log   --wrap='set -eu; test -r /mnt/plex_tv; test -w /srv/slurm-media; hostname'
+          gpu_ready=no
+          for attempt in $(seq 1 120); do
+            if sinfo --Node --noheader --partition=gpu --format='%G|%T' |
+              awk -F '|' '$1 ~ /^gpu:1($|[(])/ && $2 ~ /^(idle|mixed|allocated)$/ { ready=1 } END { exit !ready }'; then
+              gpu_ready=yes; break
+            fi
+            sleep 5
+          done
+          [[ $gpu_ready == yes ]] || { sinfo -N -l; echo 'No ready GPU worker with gpu:1'; exit 1; }
+          gpu_job=$(sbatch --wait --parsable --job-name=slurm-gpu-smoke --account=media --partition=gpu \
+            --nodes=1 --ntasks=1 --cpus-per-task=1 --gres=gpu:1 --mem=128M --time=00:02:00 \
+            --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/gpu-smoke-%j.log \
+            --wrap='set -eu; test -n "${CUDA_VISIBLE_DEVICES:-}"; test -r /mnt/plex_tv; test -w /srv/slurm-media; nvidia-smi --query-gpu=name,uuid,driver_version --format=csv,noheader')
+          printf 'GPU smoke job: %s\n' "$gpu_job"
+          cat "/srv/slurm-media/logs/gpu-smoke-${gpu_job}.log"
           sinfo -N -l
           sacctmgr --noheader --parsable2 show user slurm withassoc format=User,Account,Cluster
-          printf '\nSlurm accounting and batch execution verified.\n'
+          printf '\nSlurm accounting, CPU batch execution and GPU allocation verified.\n'
         env:
         - name: SLURM_JWT
           valueFrom:

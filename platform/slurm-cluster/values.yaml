@@ -67,6 +67,7 @@ slurm:
           readOnly: true
     extraConfMap:
       AccountingStorageEnforce: associations,limits
+      GresTypes: gpu
       JobAcctGatherType: jobacct_gather/cgroup
       JobAcctGatherFrequency: '30'
       MinJobAge: '86400'
@@ -87,7 +88,11 @@ slurm:
 
       ConstrainSwapSpace=yes
 
+      ConstrainDevices=yes
+
       '
+    gres.conf: |
+      AutoDetect=nvidia
   accounting:
     enabled: true
     slurmdbd:
@@ -180,6 +185,66 @@ slurm:
           persistentVolumeClaim:
             claimName: slurm-plex-tv
             readOnly: true
+    gpu:
+      replicas: 1
+      extraConfMap:
+        Gres: gpu:1
+      slurmd:
+        env:
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: compute,utility
+        image:
+          repository: ghcr.io/slinkyproject/slurmd
+          tag: 26.05-ubuntu26.04
+          digest: sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
+        resources:
+          requests:
+            cpu: '1'
+            memory: 2Gi
+            nvidia.com/gpu: '1'
+          limits:
+            cpu: '1'
+            memory: 2Gi
+            nvidia.com/gpu: '1'
+        volumeMounts:
+        - name: workspace
+          mountPath: /srv/slurm-media
+        - name: plex-tv
+          mountPath: /mnt/plex_tv
+          readOnly: true
+      logfile:
+        image:
+          repository: docker.io/library/alpine
+          tag: 3.23.4
+          digest: sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+        resources:
+          requests:
+            cpu: 5m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      metadata:
+        annotations:
+          backup.velero.io/backup-volumes-excludes: plex-tv
+      podSpec:
+        nodeSelector:
+          kubernetes.io/os: linux
+          node-role.kubernetes.io/worker: ''
+          node-role.kubernetes.io/gpu: ''
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Equal
+          value: 'true'
+          effect: NoSchedule
+        volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: slurm-workspace
+        - name: plex-tv
+          persistentVolumeClaim:
+            claimName: slurm-plex-tv
+            readOnly: true
   partitions:
     all:
       enabled: false
@@ -192,5 +257,18 @@ slurm:
         DefaultTime: 01:00:00
         MaxTime: 2-00:00:00
         DefMemPerCPU: '512'
+        OverSubscribe: EXCLUSIVE
+        State: UP
+    gpu:
+      enabled: true
+      nodesets:
+      - gpu
+      configMap:
+        Default: 'NO'
+        DefaultTime: 01:00:00
+        MaxTime: 2-00:00:00
+        DefMemPerCPU: '512'
+        MaxCPUsPerNode: '1'
+        MaxMemPerNode: '1792'
         OverSubscribe: EXCLUSIVE
         State: UP

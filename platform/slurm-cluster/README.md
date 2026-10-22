@@ -11,7 +11,7 @@ remain in their existing private GitLab repositories.
 | 68 | slurm-smb-csi | platform/slurm-smb-csi | Linux SMB CSI driver, worker nodes only |
 | 69 | slurm-operator | platform/slurm-operator | Slinky operator, CRDs and webhook |
 | 70 | slurm-bootstrap | platform/slurm-bootstrap | Namespace, external secrets, retained storage, database and network policy |
-| 71 | slurm-cluster | platform/slurm-cluster | Controller, accounting, REST API, one CPU worker and accounting/smoke-test hook |
+| 71 | slurm-cluster | platform/slurm-cluster | Controller, accounting, REST API, CPU and GPU workers with accounting/smoke-test hook |
 | 72 | slurm-web | platform/slurm-web | Slurm-web agent, OIDC gateway and HTTPS route |
 
 The existing ApplicationSet discovers these catalogue files. Applications use
@@ -54,8 +54,9 @@ restart the web deployments after changing their signing, session or OIDC keys.
 
 The `media` partition starts with one worker requesting and limiting one CPU
 and 2 GiB memory. The initial two-CPU request could not be scheduled on either
-eligible worker; this pilot size reserves its full CPU allocation. All components select Linux worker nodes, with no GPU-taint
-toleration. Dashboard images additionally require amd64. Confirm current worker
+eligible worker; this pilot size reserves its full CPU allocation. CPU components select Linux worker nodes without GPU-taint tolerations.
+The GPU worker selects GPU-labelled Linux workers and tolerates the existing
+`nvidia.com/gpu=true:NoSchedule` taint. Dashboard images additionally require amd64. Confirm current worker
 capacity in the cluster; repository configuration does not establish live capacity.
 
 The SMB share `//10.0.0.120/TV Shows` is mounted at `/mnt/plex_tv` with read-only
@@ -84,6 +85,35 @@ The agent and Slurm REST API remain internal. Network policy permits ingress
 within the Slurm namespace, operator-to-REST traffic from `slurm-system`, and
 HTTPS Gateway-to-web-gateway traffic on port 5011. Egress is unrestricted for
 DNS, Keycloak, storage and normal cluster communication.
+
+## GPU partition
+
+The `gpu` partition adds one worker requesting one CPU, 2 GiB RAM and one
+`nvidia.com/gpu` allocation. The existing NVIDIA device plugin time-slices the
+RTX 3060 Ti into four shared allocations; Slurm takes one allocation, sharing
+the physical GPU and VRAM with existing workloads. This is shared GPU access,
+without dedicated VRAM or fault isolation. The existing CPU worker and `media`
+partition retain their configuration.
+
+The GPU worker registers `gpu:1` using NVIDIA GRES autodetection. Cgroup device
+confinement controls device access for jobs. GPU jobs are capped at one CPU and
+1792 MiB RAM, leaving headroom inside this worker's 2 GiB limit. Its exclusive
+partition policy permits one job at a time within Slurm.
+
+From an existing authorized Slurm client:
+
+```sh
+sbatch --account=media --partition=gpu --gres=gpu:1 \
+  --cpus-per-task=1 --mem=128M --time=00:02:00 \
+  --chdir=/tmp --output=/srv/slurm-media/logs/gpu-%j.log \
+  --wrap='nvidia-smi --query-gpu=name,driver_version --format=csv,noheader'
+```
+
+The PostSync hook additionally waits for the GPU worker, requires its GRES
+allocation, and runs a GPU batch job checking `CUDA_VISIBLE_DEVICES`, NVIDIA
+driver/device access, source readability and workspace writability. Its log
+includes the GPU job ID and NVIDIA device query. This verifies GPU allocation
+and access; it does not benchmark CUDA kernels or video encoding.
 
 ## Verification
 
