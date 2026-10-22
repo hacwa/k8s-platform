@@ -1,0 +1,6 @@
+dependencies:
+- name: slurm
+  repository: oci://ghcr.io/slinkyproject/charts
+  version: 1.2.3
+digest: sha256:841c251a895ebabf4b60e25fbd044f4576bf614bb5e51d5f99fef521f7d9c7c9
+generated: "2026-10-22T10:54:55.543879104-05:00"

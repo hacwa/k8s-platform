@@ -1,0 +1,9 @@
+apiVersion: v2
+name: hacwa-slurm-operator
+description: HACWA slurm operator configuration
+type: application
+version: 1.0.0
+dependencies:
+- name: slurm-operator
+  version: 1.2.3
+  repository: oci://ghcr.io/slinkyproject/charts

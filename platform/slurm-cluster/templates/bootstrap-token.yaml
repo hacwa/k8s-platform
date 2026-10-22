@@ -1,0 +1,15 @@
+apiVersion: slinky.slurm.net/v1beta1
+kind: Token
+metadata:
+  name: slurm-bootstrap
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  jwtKeyRef:
+    name: slurm-auth
+    key: jwt.key
+  username: slurm
+  lifetime: 1h
+  refresh: true
+  secretRef:
+    name: slurm-bootstrap-token
+    key: token

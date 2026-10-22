@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: slurm-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '69'
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hacwa/k8s-platform.git
+    targetRevision: main
+    path: platform/slurm-operator
+    helm:
+      releaseName: slurm-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: slurm-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true

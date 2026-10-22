@@ -15,6 +15,15 @@ while IFS= read -r -d '' chart_file; do
   relative="${chart_dir#./}"
   output_name="${relative//\//__}.yaml"
 
+  # Helm needs HTTP dependency repositories registered before dependency build.
+  while IFS= read -r repository; do
+    repo_name="ci-dependency-$(printf '%s' "${repository}" | sha256sum | cut -c1-12)"
+    helm repo add "${repo_name}" "${repository}" --force-update
+  done < <(helm dependency list "${chart_dir}" | awk '$3 ~ /^https?:\/\// {print $3}' | sort -u)
+
+  echo "===== helm dependency build ${relative} ====="
+  helm dependency build "${chart_dir}"
+
   echo "===== helm lint ${relative} ====="
   helm lint "${chart_dir}"
 

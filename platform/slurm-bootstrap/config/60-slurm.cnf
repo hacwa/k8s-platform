@@ -1,0 +1,5 @@
+[mariadb]
+innodb_buffer_pool_size=128M
+innodb_lock_wait_timeout=900
+max_connections=64
+bind-address=0.0.0.0

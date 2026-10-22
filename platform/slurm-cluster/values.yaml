@@ -1,0 +1,196 @@
+slurm:
+  fullnameOverride: slurm
+  clusterName: hacwa-slurm
+  slurmKey:
+    create: false
+    secretRef:
+      name: slurm-auth
+      key: slurm.key
+  jwtKey:
+    create: false
+    secretRef:
+      name: slurm-auth
+      key: jwt.key
+  controller:
+    persistence:
+      enabled: true
+      existingClaim: slurm-controller-state
+    slurmctld:
+      image:
+        repository: ghcr.io/slinkyproject/slurmctld
+        tag: 26.05-ubuntu26.04
+        digest: sha256:2ec467b75fe62221d5d042154e2610c12e0a35a0947f48c940f4a9f0b858b083
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: '1'
+          memory: 768Mi
+      volumeMounts:
+      - name: workspace
+        mountPath: /srv/slurm-media
+      - name: plex-tv
+        mountPath: /mnt/plex_tv
+        readOnly: true
+    reconfigure:
+      image:
+        repository: ghcr.io/slinkyproject/slurmctld
+        tag: 26.05-ubuntu26.04
+        digest: sha256:2ec467b75fe62221d5d042154e2610c12e0a35a0947f48c940f4a9f0b858b083
+    logfile:
+      image:
+        repository: docker.io/library/alpine
+        tag: 3.23.4
+        digest: sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+      resources:
+        requests:
+          cpu: 5m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+    metadata:
+      annotations:
+        backup.velero.io/backup-volumes-excludes: plex-tv
+    podSpec:
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: slurm-workspace
+      - name: plex-tv
+        persistentVolumeClaim:
+          claimName: slurm-plex-tv
+          readOnly: true
+    extraConfMap:
+      AccountingStorageEnforce: associations,limits
+      JobAcctGatherType: jobacct_gather/cgroup
+      JobAcctGatherFrequency: '30'
+      MinJobAge: '86400'
+      ProctrackType: proctrack/cgroup
+      TaskPlugin: task/cgroup,task/affinity
+      SelectType: select/cons_tres
+      SelectTypeParameters: CR_Core_Memory
+      SchedulerType: sched/backfill
+      ReturnToService: '2'
+  configFiles:
+    cgroup.conf: 'CgroupPlugin=cgroup/v2
+
+      IgnoreSystemd=yes
+
+      ConstrainCores=yes
+
+      ConstrainRAMSpace=yes
+
+      ConstrainSwapSpace=yes
+
+      '
+  accounting:
+    enabled: true
+    slurmdbd:
+      image:
+        repository: ghcr.io/slinkyproject/slurmdbd
+        tag: 26.05-ubuntu26.04
+        digest: sha256:ff93f4ee0611320d3eb38b0210ee5788ede997ce103e4d233c20be51a00c77f9
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    storageConfig:
+      host: slurm-mariadb
+      port: 3306
+      database: slurm_acct_db
+      username: slurm
+      passwordKeyRef:
+        name: slurm-database
+        key: password
+    podSpec:
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+  restapi:
+    replicas: 1
+    slurmrestd:
+      image:
+        repository: ghcr.io/slinkyproject/slurmrestd
+        tag: 26.05-ubuntu26.04
+        digest: sha256:14fcccb88bdc0566c499fd9cfc08ad9f30636a88e91cf94c2aaf2e9cd53fa02c
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    podSpec:
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+  nodesets:
+    cpu:
+      replicas: 1
+      slurmd:
+        image:
+          repository: ghcr.io/slinkyproject/slurmd
+          tag: 26.05-ubuntu26.04
+          digest: sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
+        resources:
+          requests:
+            cpu: '2'
+            memory: 2Gi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        volumeMounts:
+        - name: workspace
+          mountPath: /srv/slurm-media
+        - name: plex-tv
+          mountPath: /mnt/plex_tv
+          readOnly: true
+      logfile:
+        image:
+          repository: docker.io/library/alpine
+          tag: 3.23.4
+          digest: sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+        resources:
+          requests:
+            cpu: 5m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      metadata:
+        annotations:
+          backup.velero.io/backup-volumes-excludes: plex-tv
+      podSpec:
+        nodeSelector:
+          kubernetes.io/os: linux
+          node-role.kubernetes.io/worker: ''
+        volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: slurm-workspace
+        - name: plex-tv
+          persistentVolumeClaim:
+            claimName: slurm-plex-tv
+            readOnly: true
+  partitions:
+    all:
+      enabled: false
+    media:
+      enabled: true
+      nodesets:
+      - cpu
+      configMap:
+        Default: 'YES'
+        DefaultTime: 01:00:00
+        MaxTime: 2-00:00:00
+        DefMemPerCPU: '512'
+        OverSubscribe: EXCLUSIVE
+        State: UP

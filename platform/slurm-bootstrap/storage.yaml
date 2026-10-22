@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurm-controller-state
+  namespace: slurm
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurm-workspace
+  namespace: slurm
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurm-db-data
+  namespace: slurm
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurm-db-backups
+  namespace: slurm
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: slurm-plex-tv
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes:
+  - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ''
+  mountOptions:
+  - ro
+  - vers=3.0
+  - uid=401
+  - gid=401
+  - file_mode=0440
+  - dir_mode=0550
+  - nosuid
+  - nodev
+  - noexec
+  claimRef:
+    namespace: slurm
+    name: slurm-plex-tv
+  csi:
+    driver: smb.csi.k8s.io
+    readOnly: true
+    volumeHandle: hacwa-slurm-plex-tv
+    volumeAttributes:
+      source: //10.0.0.120/TV Shows
+    nodeStageSecretRef:
+      name: slurm-smb
+      namespace: slurm
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurm-plex-tv
+  namespace: slurm
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadOnlyMany
+  volumeName: slurm-plex-tv
+  storageClassName: ''
+  resources:
+    requests:
+      storage: 1Ti
