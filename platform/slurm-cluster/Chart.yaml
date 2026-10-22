@@ -1,0 +1,9 @@
+apiVersion: v2
+name: hacwa-slurm-cluster
+description: HACWA slurm cluster configuration
+type: application
+version: 1.0.0
+dependencies:
+- name: slurm
+  version: 1.2.3
+  repository: oci://ghcr.io/slinkyproject/charts
