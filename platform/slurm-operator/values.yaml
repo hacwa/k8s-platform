@@ -1,0 +1,29 @@
+slurm-operator:
+  crds:
+    enabled: true
+  operator:
+    namespaces: slurm
+    nodeSelector:
+      kubernetes.io/os: linux
+      node-role.kubernetes.io/worker: ''
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: '1'
+        memory: 512Mi
+  webhook:
+    namespaces: slurm
+    nodeSelector:
+      kubernetes.io/os: linux
+      node-role.kubernetes.io/worker: ''
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  certManager:
+    enabled: true

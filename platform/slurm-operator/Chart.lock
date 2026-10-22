@@ -1,0 +1,6 @@
+dependencies:
+- name: slurm-operator
+  repository: oci://ghcr.io/slinkyproject/charts
+  version: 1.2.3
+digest: sha256:d80438aae90f4d9104e8cf5bb41c5a6d9e3caa884265cb550ae2ab4013806c47
+generated: "2026-10-22T10:55:08.058390535-05:00"
