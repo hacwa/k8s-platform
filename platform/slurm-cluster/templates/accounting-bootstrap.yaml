@@ -1,0 +1,103 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slurm-accounting-bootstrap
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: '1'
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      annotations:
+        backup.velero.io/backup-volumes-excludes: workspace
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io/worker: ''
+      securityContext:
+        runAsUser: 401
+        runAsGroup: 401
+        fsGroup: 401
+      containers:
+      - name: bootstrap
+        image: ghcr.io/slinkyproject/slurmctld:26.05-ubuntu26.04@sha256:2ec467b75fe62221d5d042154e2610c12e0a35a0947f48c940f4a9f0b858b083
+        command:
+        - /bin/bash
+        - -ec
+        - |
+          set -euo pipefail
+          ready=no
+          for attempt in $(seq 1 120); do
+            if test -s /etc/slurm/slurm.conf && scontrol ping 2>/dev/null | grep -q UP; then
+              ready=yes; break
+            fi
+            sleep 5
+          done
+          [[ $ready == yes ]] || { echo 'Slurm controller was not ready within 10 minutes'; exit 1; }
+          for attempt in $(seq 1 60); do
+            if sacctmgr --noheader --parsable2 show cluster hacwa-slurm 2>/dev/null | grep -q '^hacwa-slurm|'; then break; fi
+            sacctmgr --immediate add cluster hacwa-slurm || true
+            sleep 5
+          done
+          sacctmgr --noheader --parsable2 show cluster hacwa-slurm | grep -q '^hacwa-slurm|'
+          if ! sacctmgr --noheader --parsable2 show account media format=Account | grep -qx media; then
+            sacctmgr --immediate add account media Description='Media processing' Organization=HACWA
+          fi
+          if ! sacctmgr --noheader --parsable2 show user slurm withassoc format=User,Account | grep -q '^slurm|media$'; then
+            sacctmgr --immediate add user slurm Account=media Cluster=hacwa-slurm
+          fi
+          sacctmgr --immediate modify user where Name=slurm set DefaultAccount=media
+          mkdir -p /srv/slurm-media/{output,manifests,logs}
+          worker_ready=no
+          for attempt in $(seq 1 120); do
+            if sinfo --Node --noheader --format='%T' | grep -Eq '^(idle|mixed|allocated)$'; then worker_ready=yes; break; fi
+            sleep 5
+          done
+          [[ $worker_ready == yes ]] || { sinfo -N -l; echo 'No ready Slurm worker'; exit 1; }
+          sbatch --wait --parsable --job-name=slurm-smoke --account=media --partition=media   --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=128M --time=00:02:00   --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/smoke-%j.log   --wrap='set -eu; test -r /mnt/plex_tv; test -w /srv/slurm-media; hostname'
+          sinfo -N -l
+          sacctmgr --noheader --parsable2 show user slurm withassoc format=User,Account,Cluster
+          printf '\nSlurm accounting and batch execution verified.\n'
+        env:
+        - name: SLURM_JWT
+          valueFrom:
+            secretKeyRef:
+              name: slurm-bootstrap-token
+              key: token
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/slurm
+          readOnly: true
+        - name: workspace
+          mountPath: /srv/slurm-media
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: slurm-workspace
+      - name: config
+        projected:
+          defaultMode: 288
+          sources:
+          - configMap:
+              name: slurm-config
+              optional: true
+          - secret:
+              name: slurm-auth
+              items:
+              - key: slurm.key
+                path: slurm.key
+              - key: jwt.key
+                path: jwt.key
