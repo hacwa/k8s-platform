@@ -52,8 +52,9 @@ restart the web deployments after changing their signing, session or OIDC keys.
 
 ## Workload and access
 
-The `media` partition starts with one worker requesting and limiting two CPUs
-and 2 GiB memory. All components select Linux worker nodes, with no GPU-taint
+The `media` partition starts with one worker requesting and limiting one CPU
+and 2 GiB memory. The initial two-CPU request could not be scheduled on either
+eligible worker; this pilot size reserves its full CPU allocation. All components select Linux worker nodes, with no GPU-taint
 toleration. Dashboard images additionally require amd64. Confirm current worker
 capacity in the cluster; repository configuration does not establish live capacity.
 
