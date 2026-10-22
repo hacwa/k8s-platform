@@ -142,10 +142,10 @@ slurm:
           digest: sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
         resources:
           requests:
-            cpu: '2'
+            cpu: '1'
             memory: 2Gi
           limits:
-            cpu: '2'
+            cpu: '1'
             memory: 2Gi
         volumeMounts:
         - name: workspace
