@@ -54,6 +54,16 @@ spec:
           fi
           sacctmgr --immediate modify user where Name=slurm set DefaultAccount=media
           mkdir -p /srv/slurm-media/{output,manifests,logs}
+          # Repair only the two pilot workers drained by the Docker epilog PATH bug.
+          # Preserve maintenance drains and every other failure reason.
+          for worker in cpu-0 gpu-0; do
+            node_info=$(scontrol show node "$worker" --oneliner)
+            if [[ $node_info =~ State=[^[:space:]]*DRAIN ]] &&
+              [[ $node_info == *'Reason=Epilog error ['* || $node_info == *'Reason=Epilog error' ]]; then
+              printf 'Resuming %s after the repaired Docker epilog\n' "$worker"
+              scontrol update NodeName="$worker" State=RESUME
+            fi
+          done
           worker_ready=no
           for attempt in $(seq 1 120); do
             if sinfo --Node --noheader --format='%T' | grep -Eq '^(idle|mixed|allocated)$'; then worker_ready=yes; break; fi
