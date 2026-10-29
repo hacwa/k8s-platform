@@ -66,11 +66,10 @@ logs use `/srv/slurm-media` on retained NFS storage. The bootstrap hook creates
 the `media` accounting association for the service user `slurm`, then requires
 a successful batch job checking source readability and workspace writability.
 
-This stage installs the scheduler and dashboard. The pinned upstream worker
-image does not include FFmpeg or the pilot's Python conversion scripts. The
-existing pilot VM and media are unchanged; transferring conversion jobs requires
-a separately built worker image and reviewed job scripts. No automatic media
-conversion or replacement is enabled here.
+The custom worker image adds Docker job execution to the scheduler and dashboard.
+It does not bundle FFmpeg or the pilot's conversion scripts; supply the workload
+as a Docker image and submit a reviewed job script. No automatic media conversion
+or replacement is enabled here.
 
 The gateway is `https://slurm.hacwa.co.uk`, using the existing external Gateway
 and wildcard certificate. DNS and the external proxy must route that hostname
@@ -115,6 +114,50 @@ driver/device access, source readability and workspace writability. Its log
 includes the GPU job ID and NVIDIA device query. This verifies GPU allocation
 and access; it does not benchmark CUDA kernels or video encoding.
 
+## Docker jobs
+
+Both workers run the digest-pinned `ghcr.io/hacwa/slurm-docker-worker` image,
+built and tested from `containers/slurm-docker` in this public repository.
+Each existing privileged Slurm worker runs its own Docker daemon. The daemon
+uses a local Unix socket and an 8 GiB disposable `emptyDir` for image layers;
+it does not mount a Kubernetes host Docker socket or expose a TCP API. The
+GPU worker reuses its existing single NVIDIA allocation.
+
+From an authorized Slurm client as the existing `slurm` service user (UID 401):
+
+```bash
+job_id=$(sbatch --wait --parsable \
+  --job-name=docker-hello --account=media --partition=media \
+  --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=256M --time=00:05:00 \
+  --chdir=/tmp --output=/srv/slurm-media/logs/docker-hello-%j.log \
+  --wrap='exec /usr/local/bin/slurm-docker-run alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 echo "Hello world from Docker on Slurm"')
+cat "/srv/slurm-media/logs/docker-hello-${job_id}.log"
+sacct --jobs="$job_id" --format=JobID,JobName,State,ExitCode
+```
+
+The helper pulls the image if missing and runs its normal entrypoint/command in
+the foreground, preserving its exit status and sending output to the batch log.
+It maps the job's CPU and memory request, task CPU affinity, UID/GID and any
+allocated GPUs. Use `--partition=gpu --gres=gpu:1` with a compatible GPU image
+for NVIDIA workloads. The workspace stays at `/srv/slurm-media` read/write,
+and the media source at `/mnt/plex_tv` read-only. Save durable results in the
+workspace; the container and its writable layer are removed when the job ends.
+Catchable termination cleans up immediately; the Slurm epilog removes labelled
+containers after cancellation or SIGKILL.
+
+This is the existing trusted single-user pilot. Rootful Docker socket access
+is root-equivalent inside the already privileged worker; the helper is not a
+multi-user authorization boundary. Docker processes sit outside the Slurm task
+cgroup, so full process resource usage is not reflected in Slurm accounting.
+Container limits and the enclosing worker cgroup enforce the CPU/memory budget.
+The 1 CPU/2 GiB worker size includes daemon overhead; leave RAM headroom.
+Interactive login-node provisioning and Apptainer are separate future work.
+
+The PostSync hook submits a Docker Hello World job on `media` and an
+`nvidia-smi` job inside Docker on `gpu`, and prints both job IDs and logs.
+A successful hook therefore verifies the deployed runtime, image pulls,
+workspace access and GPU device injection through real Slurm allocations.
+
 ## Verification
 
 After merging and Argo CD reconciliation, inspect the five Applications in the
@@ -149,7 +192,8 @@ imports the restored logical dump. A retained existing datadir starts normally
 without importing over it.
 
 Controller state and workspace are included in filesystem backup. Source SMB
-media is excluded on controller/worker pod templates. Operator runtime namespace
+media is excluded on controller/worker pod templates; disposable Docker data
+is also excluded on workers. Operator runtime namespace
 and generated Slurm CRs are excluded from Velero; GitOps reconstructs them.
 The PVCs/PV use Retain and Argo deletion/pruning protection.
 
