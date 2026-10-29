@@ -2,6 +2,7 @@
 """Integration tests run as UID 401 against the worker's real nested daemon."""
 import json
 import os
+from pathlib import Path
 import signal
 import subprocess
 import time
@@ -65,7 +66,10 @@ for cancellation in (signal.SIGTERM, signal.SIGKILL):
         assert config['Memory'] == 268435456 and config['MemorySwap'] == 268435456
         assert config['NanoCpus'] == 1000000000 and config['CpusetCpus']
         assert config['NetworkMode'] == 'host' and not config['Privileged']
-        assert config['PidsLimit'] == 256 and config['CgroupParent'].endswith('/docker-jobs')
+        assert config['PidsLimit'] == 256
+        actual_cgroup = Path('/proc', str(state['State']['Pid']), 'cgroup').read_text()
+        parent = json.loads(Path('/run/slurm-docker/daemon.json').read_text())['cgroup-parent']
+        assert actual_cgroup.strip().startswith('0::' + parent + '/'), actual_cgroup
         os.killpg(job.pid, cancellation)
         job.wait(timeout=15)
         if cancellation == signal.SIGKILL:

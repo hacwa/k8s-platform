@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM docker:29.9.2-dind AS docker-engine
+FROM docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977 AS docker-engine
 FROM ghcr.io/slinkyproject/slurmd:26.05-ubuntu26.04@sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
 LABEL org.opencontainers.image.source="https://github.com/hacwa/k8s-platform"
 USER root
