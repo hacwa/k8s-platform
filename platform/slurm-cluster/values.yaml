@@ -11,6 +11,10 @@ slurm:
     secretRef:
       name: slurm-auth
       key: jwt.key
+  epilogScripts:
+    90-docker-cleanup.sh: |
+      #!/bin/sh
+      exec /usr/local/bin/slurm-docker-cleanup
   controller:
     persistence:
       enabled: true
@@ -142,9 +146,9 @@ slurm:
       replicas: 1
       slurmd:
         image:
-          repository: ghcr.io/slinkyproject/slurmd
-          tag: 26.05-ubuntu26.04
-          digest: sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
+          repository: ghcr.io/hacwa/slurm-docker-worker
+          tag: sha-dd6ea5bc3a29584aef180abb85877f53ab6d9643
+          digest: sha256:89ab194679b8031ecff16e4167e906055a67524cd382166e4bd875a0dca34a22
         resources:
           requests:
             cpu: '1'
@@ -153,6 +157,8 @@ slurm:
             cpu: '1'
             memory: 2Gi
         volumeMounts:
+        - name: docker-data
+          mountPath: /var/lib/docker
         - name: workspace
           mountPath: /srv/slurm-media
         - name: plex-tv
@@ -172,12 +178,15 @@ slurm:
             memory: 64Mi
       metadata:
         annotations:
-          backup.velero.io/backup-volumes-excludes: plex-tv
+          backup.velero.io/backup-volumes-excludes: plex-tv,docker-data
       podSpec:
         nodeSelector:
           kubernetes.io/os: linux
           node-role.kubernetes.io/worker: ''
         volumes:
+        - name: docker-data
+          emptyDir:
+            sizeLimit: 8Gi
         - name: workspace
           persistentVolumeClaim:
             claimName: slurm-workspace
@@ -194,9 +203,9 @@ slurm:
         - name: NVIDIA_DRIVER_CAPABILITIES
           value: compute,utility
         image:
-          repository: ghcr.io/slinkyproject/slurmd
-          tag: 26.05-ubuntu26.04
-          digest: sha256:dc415d580e0c9d9b2e8c785bfe90f2541670bc9a5de255fba9117032eb247d10
+          repository: ghcr.io/hacwa/slurm-docker-worker
+          tag: sha-dd6ea5bc3a29584aef180abb85877f53ab6d9643
+          digest: sha256:89ab194679b8031ecff16e4167e906055a67524cd382166e4bd875a0dca34a22
         resources:
           requests:
             cpu: '1'
@@ -207,6 +216,8 @@ slurm:
             memory: 2Gi
             nvidia.com/gpu: '1'
         volumeMounts:
+        - name: docker-data
+          mountPath: /var/lib/docker
         - name: workspace
           mountPath: /srv/slurm-media
         - name: plex-tv
@@ -226,7 +237,7 @@ slurm:
             memory: 64Mi
       metadata:
         annotations:
-          backup.velero.io/backup-volumes-excludes: plex-tv
+          backup.velero.io/backup-volumes-excludes: plex-tv,docker-data
       podSpec:
         nodeSelector:
           kubernetes.io/os: linux
@@ -238,6 +249,9 @@ slurm:
           value: 'true'
           effect: NoSchedule
         volumes:
+        - name: docker-data
+          emptyDir:
+            sizeLimit: 8Gi
         - name: workspace
           persistentVolumeClaim:
             claimName: slurm-workspace
