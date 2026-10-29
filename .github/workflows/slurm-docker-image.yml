@@ -33,6 +33,8 @@ jobs:
         run: docker build --tag slurm-docker:test containers/slurm-docker
       - name: Test actual nested containers and cancellation
         run: bash containers/slurm-docker/integration.sh slurm-docker:test
+      - name: Resolve GPU smoke image
+        run: docker buildx imagetools inspect ubuntu:26.04
       - name: Save tested image
         if: github.event_name != 'pull_request'
         run: docker save slurm-docker:test --output /tmp/slurm-docker.tar
