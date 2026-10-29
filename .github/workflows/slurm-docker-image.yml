@@ -73,4 +73,4 @@ jobs:
           docker tag slurm-docker:test "$image"
           docker push "$image"
           digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
-          printf 'Worker image: `%s`\n' "$digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          printf 'Worker image: %s\n' "$digest" | tee -a "$GITHUB_STEP_SUMMARY"
