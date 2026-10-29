@@ -22,7 +22,7 @@ def docker(*args, capture=False, check=True):
     for key in ('DOCKER_CONTEXT', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'):
         env.pop(key, None)
     env['DOCKER_HOST'] = SOCKET
-    return subprocess.run(['docker', '--host', SOCKET, *args], env=env,
+    return subprocess.run(['/usr/local/bin/docker', '--host', SOCKET, *args], env=env,
                           text=True, capture_output=capture, check=check)
 
 

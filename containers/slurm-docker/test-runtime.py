@@ -9,12 +9,12 @@ import time
 
 IMAGE = 'alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11'
 ENV = {**os.environ, 'SLURM_JOB_ID': '1234', 'SLURM_CPUS_PER_TASK': '1',
-       'SLURM_MEM_PER_NODE': '256'}
+       'SLURM_MEM_PER_NODE': '256', 'PATH': '/usr/bin:/bin'}
 LABEL = 'hacwa.slurm.job-id=1234'
 
 
 def docker(*args):
-    return subprocess.check_output(['docker', *args], text=True).strip()
+    return subprocess.check_output(['/usr/local/bin/docker', *args], text=True).strip()
 
 
 def containers():
@@ -22,16 +22,16 @@ def containers():
 
 
 def run(*args, **kwargs):
-    return subprocess.run(['slurm-docker-run', IMAGE, *args], env=ENV,
+    return subprocess.run(['/usr/local/bin/slurm-docker-run', IMAGE, *args], env=ENV,
                           text=True, capture_output=True, timeout=60, **kwargs)
 
 
 assert os.getuid() == 401, 'Test the real Slurm service user'
-missing = subprocess.run(['slurm-docker-run', IMAGE, 'true'],
+missing = subprocess.run(['/usr/local/bin/slurm-docker-run', IMAGE, 'true'],
                          env={k: v for k, v in ENV.items() if k != 'SLURM_JOB_ID'},
                          text=True, capture_output=True, timeout=10)
 assert missing.returncode != 0 and 'Slurm allocation' in missing.stderr, missing
-oversized = subprocess.run(['slurm-docker-run', IMAGE, 'true'],
+oversized = subprocess.run(['/usr/local/bin/slurm-docker-run', IMAGE, 'true'],
                            env={**ENV, 'SLURM_MEM_PER_NODE': '4096'},
                            text=True, capture_output=True, timeout=10)
 assert oversized.returncode != 0 and 'exceeds' in oversized.stderr, oversized
@@ -49,7 +49,7 @@ assert run('sh', '-c', 'exit 42').returncode == 42, 'Preserve application exit c
 assert not containers(), 'Failed jobs must not leave containers'
 
 for cancellation in (signal.SIGTERM, signal.SIGKILL):
-    job = subprocess.Popen(['slurm-docker-run', IMAGE, 'sleep', '300'],
+    job = subprocess.Popen(['/usr/local/bin/slurm-docker-run', IMAGE, 'sleep', '300'],
                            env=ENV, start_new_session=True,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -74,11 +74,11 @@ for cancellation in (signal.SIGTERM, signal.SIGKILL):
         job.wait(timeout=15)
         if cancellation == signal.SIGKILL:
             # Slurm's root epilog also removes containers after an uncatchable kill.
-            subprocess.run(['slurm-docker-cleanup'], env=ENV, check=True, timeout=15)
+            subprocess.run(['/usr/local/bin/slurm-docker-cleanup'], env=ENV, check=True, timeout=15)
         assert not containers(), f'Container survived {cancellation}'
     finally:
         if job.poll() is None:
             os.killpg(job.pid, signal.SIGKILL)
             job.wait(timeout=10)
-        subprocess.run(['slurm-docker-cleanup'], env=ENV, check=True, timeout=15)
-print('PASS: UID, mounts, CPU/memory limits, exit status, SIGTERM and SIGKILL cleanup')
+        subprocess.run(['/usr/local/bin/slurm-docker-cleanup'], env=ENV, check=True, timeout=15)
+print('PASS: minimal Slurm PATH, UID, mounts, CPU/memory limits, exit status, SIGTERM and SIGKILL cleanup')
