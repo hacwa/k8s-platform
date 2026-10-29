@@ -1,0 +1,78 @@
+name: Slurm Docker worker
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - containers/slurm-docker/**
+      - .github/workflows/slurm-docker-image.yml
+  push:
+    branches: [main]
+    paths:
+      - containers/slurm-docker/**
+      - .github/workflows/slurm-docker-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: slurm-docker-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build_test:
+    name: Build and test nested Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build worker image
+        run: docker build --tag slurm-docker:test containers/slurm-docker
+      - name: Test actual nested containers and cancellation
+        run: bash containers/slurm-docker/integration.sh slurm-docker:test
+      - name: Resolve GPU smoke image
+        run: docker buildx imagetools inspect ubuntu:26.04
+      - name: Save tested image
+        if: github.event_name != 'pull_request'
+        run: docker save slurm-docker:test --output /tmp/slurm-docker.tar
+      - uses: actions/upload-artifact@v6
+        if: github.event_name != 'pull_request'
+        with:
+          name: slurm-docker-image
+          path: /tmp/slurm-docker.tar
+          retention-days: 1
+
+  publish:
+    name: Publish tested worker image
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build_test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: slurm-docker-image
+          path: /tmp
+      - name: Publish immutable revision
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${SOURCE_REPOSITORY%/*}/slurm-docker-worker:sha-${SOURCE_REVISION}"
+          docker load --input /tmp/slurm-docker.tar
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          docker tag slurm-docker:test "$image"
+          docker push "$image"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
+          printf 'Worker image: %s\n' "$digest" | tee -a "$GITHUB_STEP_SUMMARY"
