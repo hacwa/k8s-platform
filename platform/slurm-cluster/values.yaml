@@ -147,8 +147,8 @@ slurm:
       slurmd:
         image:
           repository: ghcr.io/hacwa/slurm-docker-worker
-          tag: sha-dd6ea5bc3a29584aef180abb85877f53ab6d9643
-          digest: sha256:89ab194679b8031ecff16e4167e906055a67524cd382166e4bd875a0dca34a22
+          tag: sha-895d67167ea31103873cc5d8ed5cfb57aa705290
+          digest: sha256:15be5361b2dd139d735c88a96ef99f0b3b02b8c5bf3c39c8e819b27143284fb2
         resources:
           requests:
             cpu: '1'
@@ -204,8 +204,8 @@ slurm:
           value: compute,utility
         image:
           repository: ghcr.io/hacwa/slurm-docker-worker
-          tag: sha-dd6ea5bc3a29584aef180abb85877f53ab6d9643
-          digest: sha256:89ab194679b8031ecff16e4167e906055a67524cd382166e4bd875a0dca34a22
+          tag: sha-895d67167ea31103873cc5d8ed5cfb57aa705290
+          digest: sha256:15be5361b2dd139d735c88a96ef99f0b3b02b8c5bf3c39c8e819b27143284fb2
         resources:
           requests:
             cpu: '1'
