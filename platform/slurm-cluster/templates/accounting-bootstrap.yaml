@@ -76,9 +76,21 @@ spec:
             --wrap='set -eu; test -n "${CUDA_VISIBLE_DEVICES:-}"; test -r /mnt/plex_tv; test -w /srv/slurm-media; nvidia-smi --query-gpu=name,uuid,driver_version --format=csv,noheader')
           printf 'GPU smoke job: %s\n' "$gpu_job"
           cat "/srv/slurm-media/logs/gpu-smoke-${gpu_job}.log"
+          docker_cpu_job=$(sbatch --wait --parsable --job-name=slurm-docker-hello --account=media --partition=media \
+            --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=256M --time=00:05:00 \
+            --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/docker-hello-%j.log \
+            --wrap='exec /usr/local/bin/slurm-docker-run alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 sh -ec '\''test "$(id -u)" = 401; test -r /mnt/plex_tv; test -w /srv/slurm-media; printf "Hello world from Docker on Slurm, job %s\n" "$SLURM_JOB_ID" | tee "/srv/slurm-media/output/hello-docker-${SLURM_JOB_ID}.txt"'\''')
+          printf 'CPU Docker Hello World job: %s\n' "$docker_cpu_job"
+          cat "/srv/slurm-media/logs/docker-hello-${docker_cpu_job}.log"
+          docker_gpu_job=$(sbatch --wait --parsable --job-name=slurm-docker-gpu --account=media --partition=gpu \
+            --nodes=1 --ntasks=1 --cpus-per-task=1 --gres=gpu:1 --mem=256M --time=00:05:00 \
+            --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/docker-gpu-%j.log \
+            --wrap='exec /usr/local/bin/slurm-docker-run ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c nvidia-smi --query-gpu=name,uuid,driver_version --format=csv,noheader')
+          printf 'GPU Docker job: %s\n' "$docker_gpu_job"
+          cat "/srv/slurm-media/logs/docker-gpu-${docker_gpu_job}.log"
           sinfo -N -l
           sacctmgr --noheader --parsable2 show user slurm withassoc format=User,Account,Cluster
-          printf '\nSlurm accounting, CPU batch execution and GPU allocation verified.\n'
+          printf '\nSlurm accounting, native batch execution, Docker Hello World and Docker GPU access verified.\n'
         env:
         - name: SLURM_JWT
           valueFrom:
