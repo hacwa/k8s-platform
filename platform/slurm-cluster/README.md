@@ -158,6 +158,29 @@ The PostSync hook submits a Docker Hello World job on `media` and an
 A successful hook therefore verifies the deployed runtime, image pulls,
 workspace access and GPU device injection through real Slurm allocations.
 
+### GPU video encoding
+
+The GPU worker requests `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video` so
+the outer Kubernetes container receives the NVENC/NVDEC driver libraries that
+its nested Docker runtime needs. `nvidia-smi` alone does not verify encoding.
+The PostSync hook additionally encodes a two-second generated video with
+`h264_nvenc`, requires successful job completion and a nonempty output file,
+and prints the FFmpeg log.
+
+Use the digest-pinned FFmpeg 7.1.1 image below with the pilot's NVIDIA 580
+driver. Its nv-codec-headers 13.0.19 require driver 570 or newer. Avoid an
+unreviewed `latest` image, whose codec API may require a newer host driver.
+From a Slurm shell as `slurm`, this encodes the first minute of the first
+readable video on the media share and writes a separate output file:
+
+```bash
+job_id=$(sbatch --wait --parsable --job-name=gpu-encode --account=media --partition=gpu --gres=gpu:1 --cpus-per-task=1 --mem=1536M --time=00:15:00 --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/encode-%j.log --wrap='input=$(find /mnt/plex_tv -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" \) -readable -print -quit); test -n "$input" || { echo "No readable video found"; exit 1; }; echo "Encoding: $input"; exec /usr/local/bin/slurm-docker-run ghcr.io/linuxserver/ffmpeg:7.1.1-cli-ls22@sha256:55d5c62f9fd9ed3d96c50248ce628088b72e810879cf415f5105d2b7c4616f38 -hide_banner -nostdin -n -threads 1 -i "file:$input" -t 60 -map 0:v:0 -map "0:a:0?" -c:v h264_nvenc -preset p4 -b:v 4M -pix_fmt yuv420p -c:a aac -b:a 128k -threads 1 "/srv/slurm-media/output/encode-${SLURM_JOB_ID}.mkv"'); result=$?; echo "Job: $job_id (exit $result)"; test -n "$job_id" && cat "/srv/slurm-media/logs/encode-${job_id}.log"
+```
+
+The `file:` input URL lets FFmpeg read the source directly while retaining the
+Slurm job UID; the image's wrapper otherwise tries to change users to match
+the source file owner. Source media stays read-only.
+
 ## Verification
 
 After merging and Argo CD reconciliation, inspect the five Applications in the
