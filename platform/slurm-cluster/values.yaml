@@ -201,7 +201,7 @@ slurm:
       slurmd:
         env:
         - name: NVIDIA_DRIVER_CAPABILITIES
-          value: compute,utility,video
+          value: compute,utility
         image:
           repository: ghcr.io/hacwa/slurm-docker-worker
           tag: sha-895d67167ea31103873cc5d8ed5cfb57aa705290
