@@ -98,9 +98,19 @@ spec:
             --wrap='exec /usr/local/bin/slurm-docker-run ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c nvidia-smi --query-gpu=name,uuid,driver_version --format=csv,noheader')
           printf 'GPU Docker job: %s\n' "$docker_gpu_job"
           cat "/srv/slurm-media/logs/docker-gpu-${docker_gpu_job}.log"
+          docker_encode_job=$(sbatch --wait --parsable --job-name=slurm-docker-nvenc --account=media --partition=gpu \
+            --nodes=1 --ntasks=1 --cpus-per-task=1 --gres=gpu:1 --mem=512M --time=00:10:00 \
+            --chdir=/tmp --export=NIL --output=/srv/slurm-media/logs/docker-nvenc-%j.log \
+            --wrap='exec /usr/local/bin/slurm-docker-run ghcr.io/linuxserver/ffmpeg:7.1.1-cli-ls22@sha256:55d5c62f9fd9ed3d96c50248ce628088b72e810879cf415f5105d2b7c4616f38 -hide_banner -nostdin -n -f lavfi -i testsrc2=size=1280x720:rate=30 -t 2 -c:v h264_nvenc -preset p4 -b:v 2M -an "/srv/slurm-media/output/nvenc-smoke-${SLURM_JOB_ID}.mkv"') || {
+            cat "/srv/slurm-media/logs/docker-nvenc-${docker_encode_job}.log"
+            exit 1
+          }
+          printf 'GPU Docker NVENC encode job: %s\n' "$docker_encode_job"
+          cat "/srv/slurm-media/logs/docker-nvenc-${docker_encode_job}.log"
+          test -s "/srv/slurm-media/output/nvenc-smoke-${docker_encode_job}.mkv"
           sinfo -N -l
           sacctmgr --noheader --parsable2 show user slurm withassoc format=User,Account,Cluster
-          printf '\nSlurm accounting, native batch execution, Docker Hello World and Docker GPU access verified.\n'
+          printf '\nSlurm accounting, native batch execution, Docker Hello World, Docker GPU access and NVENC encoding verified.\n'
         env:
         - name: SLURM_JWT
           valueFrom:
